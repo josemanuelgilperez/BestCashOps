@@ -2,7 +2,7 @@
 # =================================================
 # UPDATE STATUS + REBUILD INCREMENTAL + FTP
 # =================================================
-# 1) Lee data/update_status.csv y actualiza boxes.status
+# 1) Lee wholesale/data/update_status.csv y actualiza boxes.status
 # 2) Regenera SOLO las páginas afectadas por los códigos del CSV:
 #    - lotes/index.html, resumen_general.html (índices generales)
 #    - lotes/{code}.html solo para los del CSV que están Disponible/Reservado
@@ -68,7 +68,7 @@ def actualizar_estados_desde_csv():
     Si no hay CSV, devuelve set vacío.
     """
     if not CSV_PATH.exists():
-        print("ℹ️ No existe data/update_status.csv, nada que hacer")
+        print("ℹ️ No existe wholesale/data/update_status.csv, nada que hacer")
         return set()
 
     conn = get_connection()

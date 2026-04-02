@@ -4,8 +4,8 @@
 .env
 .env.*
 
-# CSV operativo (crear en servidor o copiar)
-data/update_status.csv
+# CSV operativo mayorista (ruta real: wholesale/data/)
+wholesale/data/update_status.csv
 
 # ======================================
 # LOGS

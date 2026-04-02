@@ -5,7 +5,8 @@
 # 📥 ENTRADA (OBLIGATORIO)
 # --------------------------------------
 # 1. Carpeta de entrada:
-#    ./files/new_box_files/
+#    Por defecto: ../../tools/data/new_box_files/ (si existe); si no, ./data/new_box_files/
+#    (raíz de datos = WHOLESALE_DATA_DIR en .env o variable de entorno, opcional)
 #
 #    ➤ Colocar aquí los archivos Excel (.xlsx) descargados
 #      (uno por pallet).
@@ -20,7 +21,7 @@
 #
 #
 # 2. Archivo de mapeo de nombres:
-#    ./files/names.csv
+#    Misma raíz: names.csv junto a new_box_files/
 #
 #    ➤ Formato:
 #        codigo,titulo
@@ -39,7 +40,7 @@
 #    - Tabla: box_items
 #
 # 2. Archivos procesados:
-#    ./files/processed/
+#    Misma raíz: processed/
 #
 #    ➤ Los Excel se mueven aquí tras procesarse correctamente
 #
@@ -86,10 +87,24 @@ load_dotenv()
 # CONFIG
 # ==============================
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO_ROOT = os.path.dirname(BASE_DIR)
 
-SOURCE_DIR = os.path.join(BASE_DIR, "data", "new_box_files")
-PROCESSED_DIR = os.path.join(BASE_DIR, "data", "processed")
-NAMES_FILE = os.path.join(BASE_DIR, "data", "names.csv")
+
+def _resolve_data_root():
+    """Raíz con new_box_files/, names.csv y processed/."""
+    override = (os.environ.get("WHOLESALE_DATA_DIR") or "").strip()
+    if override:
+        return os.path.abspath(override)
+    tools_data = os.path.join(REPO_ROOT, "tools", "data")
+    if os.path.isdir(os.path.join(tools_data, "new_box_files")):
+        return tools_data
+    return os.path.join(BASE_DIR, "data")
+
+
+DATA_ROOT = _resolve_data_root()
+SOURCE_DIR = os.path.join(DATA_ROOT, "new_box_files")
+PROCESSED_DIR = os.path.join(DATA_ROOT, "processed")
+NAMES_FILE = os.path.join(DATA_ROOT, "names.csv")
 
 DB_CONFIG = None  # mantenido por compatibilidad si se usa en otros sitios
 # ==============================
@@ -237,6 +252,7 @@ def process_file(filepath, mapping):
 
 
 def main():
+    print(f"📂 Raíz datos (ingest): {DATA_ROOT}")
     if not os.path.exists(PROCESSED_DIR):
         os.makedirs(PROCESSED_DIR)
 

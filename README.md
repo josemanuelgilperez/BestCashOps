@@ -10,11 +10,12 @@ BestCashOps/
 │   ├── amazon_import/         # importacion y sync retail desde Amazon
 │   └── bestcash_modules/      # modulos compartidos para retail
 ├── wholesale/
+│   ├── data/                  # update_status.csv (deploy incremental); opcional si no usas tools/data
 │   ├── pipeline/              # ingest, enrich, finance (lotes)
 │   ├── scripts/               # wrappers de ejecucion/deploy mayorista
 │   └── web/                   # build html, categories, templates, assets
 ├── tools/                     # utilidades puntuales (mantenimiento, media, export, printing)
-├── data/                      # entradas operativas del flujo mayorista
+├── tools/data/                # Excel lotes + names.csv (ingest los usa por defecto)
 ├── config/
 ├── logs/
 ├── db.py
