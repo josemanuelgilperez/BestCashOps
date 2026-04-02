@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Resumen de Pallets</title>
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+  <header class="summary-header">
+    <h1>Resumen General de Pallets</h1>
+    <div class="search-box">
+      <label for="summarySearch" class="visually-hidden">Buscar por código, nombre o estado</label>
+      <input type="search" id="summarySearch" placeholder="Buscar por código, nombre o estado..." autocomplete="off" />
+    </div>
+  </header>
+
+  <table id="summaryTable">
+    <thead>
+      <tr>
+        <th class="sortable" data-column="code">Código</th>
+        <th class="sortable" data-column="name">Nombre</th>
+        <th>Unidades</th>
+        <th>PVP Total</th>
+        <th>Coste Total</th>
+        <th>% Coste / PVP</th>
+        <th class="sortable" data-column="status">Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for box in boxes %}
+      <tr>
+        <td><a href="lotes/{{ box.code }}.html" target="_blank">{{ box.code }}</a></td>
+        <td>{{ box.name }}</td>
+        <td>{{ box.total_units }}</td>
+        <td>{{ box.pvp_total }}</td>
+        <td>{{ box.coste_total }}</td>
+        <td>
+          {% if box.pvp_total and box.pvp_total > 0 %}
+            {{ ((box.coste_total / box.pvp_total) * 100) | round(1) }}%
+          {% else %}
+            N/A
+          {% endif %}
+        </td>
+        <td>
+          {% if box.status == 'Disponible' %}
+            <span class="badge badge--ok"><span class="dot"></span>Disponible</span>
+          {% elif box.status == 'Reservado' %}
+            <span class="badge badge--warn"><span class="dot"></span>Reservado</span>
+          {% elif box.status == 'Vendido' %}
+            <span class="badge badge--bad"><span class="dot"></span>Vendido</span>
+          {% else %}
+            {{ box.status }}
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <script src="../assets/summary-sort.js"></script>
+
+</body>
+</html>

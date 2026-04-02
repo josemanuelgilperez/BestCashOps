@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/jpeg"
+        href="//tienda.bestcash.es/cdn/shop/files/LOGO_BESTCASH.jpg?crop=center&height=128&v=1687771017&width=128">
+  <link rel="stylesheet" href="../assets/styles.css">
+
+  <title>{% block page_title %}BestCash{% endblock %}</title>
+</head>
+
+<body>
+
+<header>
+  <img src="../assets/img/logo-bestcash.png" class="logo">
+
+  <div>
+    <h1>{% block header_title %}{% endblock %}</h1>
+  </div>
+
+  <a href="{{ back_url }}">← Inicio</a>
+</header>
+
+{% block content %}{% endblock %}
+<script src="../assets/table-sort.js"></script>
+</body>
+</html>

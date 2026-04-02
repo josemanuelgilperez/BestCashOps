@@ -1,0 +1,74 @@
+<div class="table-wrap">
+<table id="palletTable">
+<thead>
+<tr>
+  <th class="sortable col-code" data-type="text" scope="col">Lote</th>
+  <th class="sortable col-name"data-type="text" scope="col">Nombre</th>
+  <th class="sortable col-units" data-type="number" scope="col">Uds</th>
+  <th class="sortable col-pvp" data-type="number" scope="col">PVP</th>
+  <th class="sortable col-price" data-type="number" scope="col">Precio</th>
+  <th class="sortable col-weight" data-type="number" scope="col">Peso</th>
+	<th class="col-do num" scope="col">Dev/Over</th>
+  <th class="sortable col-status" data-type="status" scope="col">Estado</th>
+</tr>
+</thead>
+
+<tbody>
+{% for pallet in pallets if pallet.status in ('Disponible','Reservado') %}
+<tr class="{% if pallet.discount > 0 %}row-discount{% endif %}">
+  <td>
+    <a href="../lotes/{{ pallet.code }}.html" title="Ver detalle del pallet {{ pallet.code }}">{{ pallet.code }}</a>
+  </td>
+  <td class="col-name">{{ pallet.name }}</td>
+  <td class="num col-units">{{ pallet.total_units or 0 }}</td>
+  <td class="num col-pvp">
+    {{ "%.2f"|format(pallet.pvp_total) }}
+  </td>
+  <td class="num col-price">
+    {% if pallet.discount > 0 %}
+      <span class="price-discount">
+        {{ "%.2f"|format(pallet.precio_final) }}
+      </span>
+    {% else %}
+      <strong>
+        {{ "%.2f"|format(pallet.precio_final) }}
+      </strong>
+    {% endif %}
+  </td>
+  <td class="num col-weight">
+    {% if pallet.weight is not none %}
+      {{ '%.2f' % pallet.weight }}kg
+    {% endif %}
+  </td>
+
+  <td class="col-do">
+    {{ pallet.devoluciones or 0 }}/{{ pallet.overstock or 0 }}
+  </td>
+
+  <td class="col-status">
+    {% if pallet.status == 'Disponible' %}
+      <a href="../lotes/{{ pallet.code }}.html" style="text-decoration:none">
+        <span class="badge badge--ok">
+          <span class="dot"></span>Disponible
+        </span>
+      </a>
+    {% elif pallet.status == 'Reservado' %}
+      <a href="../lotes/{{ pallet.code }}.html" style="text-decoration:none">
+        <span class="badge badge--warn">
+          <span class="dot"></span>Reservado
+        </span>
+      </a>
+    {% endif %}
+  </td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+
+<p class="legend">
+  <strong>Notas:</strong>
+  El PVP total es el valor estimado de mercado del contenido del pallet.
+  El precio de venta corresponde al margen aplicado sobre el PVP total,
+con descuento comercial si procede..
+</p>

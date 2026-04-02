@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ pallet_code }} – {{ pallet_name }}</title>
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+
+<body class="page-pallet">
+
+<header class="header">
+  <div class="header-left">
+    <div>
+      <div class="title-main">
+        {{ pallet_code }} – {{ pallet_name }}
+      </div>
+
+      <div class="title-meta">
+        {{ total_units }} unidades · PVP {{ "%.2f"|format(pvp_total) }} €
+      </div>
+
+      <div class="title-price">
+        {% if discount > 0 %}
+          <span class="discount-badge">
+            {{ "%.2f"|format(precio_final) }} € (-{{ discount }}%)
+          </span>
+        {% else %}
+          <strong>{{ "%.2f"|format(precio_final) }} €</strong>
+        {% endif %}
+      </div>
+
+      <div class="status status-{{ status|lower }}">
+        {{ status }}
+      </div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <a href="{{ categoria_url }}">← Categoría</a>
+    <a href="{{ home_url }}">Inicio</a>
+  </div>
+</header>
+
+<table>
+  <thead>
+  <tr>
+    <th class="col-asin">ASIN</th>
+    <th>Uds.</th>
+    <th>Producto</th>
+    <th class="col-size">Talla</th>
+    <th class="col-color">Color</th>
+    <th>PVP ud.</th>
+    <th>Precio ud.</th>
+    <th>Imagen</th>
+    <th class="col-links" colspan="2">Enlaces</th>
+  </tr>
+  </thead>
+
+  <tbody>
+    {% for item in items %}
+    <tr>
+      <td class="col-asin">{{ item.asin }}</td>
+      <td>{{ item.quantity }}</td>
+      <td>{{ item.titulo_breve }}</td>
+      <td class="col-size">{{ item.size }}</td>
+      <td class="col-color">{{ item.color }}</td>
+      <td>{{ "%.2f"|format(item.pvp_ud) }} €</td>
+      <td>{{ "%.2f"|format(item.precio_cliente) }} €</td>
+      <td>
+        {% if item.imagen_principal %}
+          <img src="{{ item.imagen_principal }}" class="product"
+               onclick="openModal('{{ item.imagen_principal }}')">
+        {% else %}
+          —
+        {% endif %}
+      </td>
+      <td class="col-links">
+        <a href="https://www.amazon.es/dp/{{ item.asin }}" target="_blank">
+          <img src="https://bestcashproductimages.s3.amazonaws.com/icons/amazon-logo.png"
+               class="icon-large">
+        </a>
+      </td>
+      <td class="col-links">
+        <a href="https://www.google.com/search?q={{ item.asin }}" target="_blank">
+          <img src="https://bestcashproductimages.s3.amazonaws.com/icons/google-logo.png"
+               class="icon-large">
+        </a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div id="imageModal" class="modal">
+  <a id="downloadLink" class="modal-download" download target="_blank">Descargar imagen</a>
+  <span class="modal-close" onclick="closeModal()">×</span>
+  <img class="modal-content" id="modalImage">
+</div>
+
+<script src="../assets/pallet-modal.js"></script>
+
+</body>
+</html>

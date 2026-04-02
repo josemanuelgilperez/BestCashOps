@@ -1,0 +1,539 @@
+/* =============================
+   VARIABLES Y BASE
+   ============================= */
+:root {
+  --fg: #222222;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --bg: #ffffff;
+  --bg-alt: #f9fafb;
+  --brand: #0ea5e9;
+  --ok: #16a34a;
+  --warn: #d97706;
+  --bad: #dc2626;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: Arial, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Ubuntu, sans-serif;
+}
+
+body {
+  padding: 20px;
+}
+
+a {
+  color: var(--brand);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* =============================
+   LAYOUT LISTADOS
+   ============================= */
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.logo {
+  height: 48px;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 42px;
+  line-height: 1.2;
+  color: darkorange;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.desktop-only {
+  display: block;
+}
+
+.mobile-only {
+  display: none;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.summary-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.summary-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: darkorange;
+}
+
+.search-box input {
+  min-width: 240px;
+  padding: 8px 12px;
+  font-size: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.search-box input:focus {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-color: var(--brand);
+}
+
+/* =============================
+   TABLA PRINCIPAL LOTES
+   ============================= */
+.table-wrap {
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 720px;
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-alt);
+  padding: 10px 5px;
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+  font-size: 14px;
+}
+
+tbody tr:nth-child(even) {
+  background: #f6f7f9;
+}
+
+tbody tr:hover {
+  background: #e8f1ff;
+  box-shadow: inset 0 0 0 9999px rgba(14, 165, 233, 0.06);
+}
+
+tbody td {
+  padding: 10px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  vertical-align: middle;
+  font-size: 14px;
+}
+
+th.sortable::after {
+  content: "⇅";
+  font-size: 12px;
+  color: var(--muted);
+  margin-left: 4px;
+}
+
+th.sorted-asc::after {
+  content: "▲";
+  color: var(--brand);
+}
+
+th.sorted-desc::after {
+  content: "▼";
+  color: var(--brand);
+}
+
+.row-discount {
+  background: #ffecec !important;
+}
+
+.row-discount:hover {
+  background: #ffdede !important;
+}
+
+.num {
+  white-space: nowrap;
+}
+
+.price-discount {
+  color: var(--bad);
+  font-weight: 700;
+}
+
+.legend {
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* =============================
+   BADGES DE ESTADO
+   ============================= */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 12px;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.badge .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.badge--ok {
+  background: var(--ok);
+}
+
+.badge--warn {
+  background: var(--warn);
+}
+
+.badge--bad {
+  background: var(--bad);
+}
+
+/* =============================
+   CARDS (VISTA MÓVIL)
+   ============================= */
+.cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.card {
+  position: relative;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 14px;
+  background: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.card-link {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+}
+
+.card-content {
+  pointer-events: none;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.card-left {
+  flex: 1;
+}
+
+.card-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.card-code {
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--brand);
+}
+
+.card-name {
+  font-size: 14px;
+  color: #111111;
+  margin-bottom: 8px;
+}
+
+.card-meta {
+  display: flex;
+  gap: 10px;
+  font-size: 13px;
+  color: #374151;
+}
+
+.card-price {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--bad);
+}
+
+.card-pvp {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* =============================
+   PÁGINA DETALLE PALLET
+   ============================= */
+.page-pallet {
+  padding: 20px;
+}
+
+.page-pallet .header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  border-bottom: none;
+  padding: 0 0 16px;
+}
+
+.page-pallet .header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.page-pallet .title-main {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.page-pallet .title-meta {
+  font-size: 16px;
+  color: #666666;
+  margin-top: 2px;
+}
+
+.page-pallet .title-price {
+  margin-top: 6px;
+  font-size: 22px;
+}
+
+.page-pallet .actions {
+  display: flex;
+  gap: 12px;
+}
+
+.status {
+  margin-top: 8px;
+  font-weight: bold;
+  font-size: 13px;
+}
+
+.status-disponible {
+  color: var(--ok);
+}
+
+.status-reservado {
+  color: var(--warn);
+}
+
+.status-vendido {
+  color: var(--bad);
+}
+
+.discount-badge {
+  background-color: var(--bad);
+  color: #ffffff;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-weight: bold;
+  display: inline-block;
+}
+
+.product {
+  max-width: 90px;
+  cursor: pointer;
+}
+
+.icon-large {
+  width: 36px;
+  height: 36px;
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  z-index: 1000;
+}
+
+.modal-content {
+  display: block;
+  margin: 60px auto;
+  max-width: 80%;
+  max-height: 80%;
+}
+
+.modal-close {
+  position: absolute;
+  top: 20px;
+  right: 35px;
+  color: #ffffff;
+  font-size: 40px;
+  cursor: pointer;
+}
+
+.modal-download {
+  position: absolute;
+  top: 20px;
+  left: 35px;
+  background: #ffffff;
+  color: #000000;
+  padding: 8px 12px;
+  border-radius: 5px;
+  font-size: 14px;
+}
+
+/* =============================
+   RESPONSIVE
+   ============================= */
+@media (max-width: 768px) {
+  body {
+    padding: 12px;
+  }
+
+  header {
+    padding: 12px 16px;
+  }
+
+  .logo {
+    height: 42px;
+  }
+
+  header h1 {
+    font-size: 34px;
+  }
+
+  .desktop-only {
+    display: none;
+  }
+
+  .mobile-only {
+    display: block;
+  }
+
+  table {
+    min-width: unset;
+    font-size: 13px;
+  }
+
+  .col-weight,
+  .col-pvp,
+  .col-do {
+    display: none;
+  }
+
+  .col-name {
+    max-width: 180px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: left;
+  }
+
+  thead th,
+  tbody td {
+    padding: 6px;
+  }
+
+  .badge {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+
+  .page-pallet .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .page-pallet .title-main {
+    font-size: 18px;
+  }
+
+  .icon-large {
+    width: 26px;
+    height: 26px;
+  }
+
+  .page-pallet .col-asin,
+  .page-pallet .col-desc,
+  .page-pallet .col-size,
+  .page-pallet .col-color,
+  .page-pallet .col-total,
+  .page-pallet .col-links {
+    display: none;
+  }
+
+  .product {
+    max-width: 60px;
+  }
+}
+
+/* =============================
+   IMPRESIÓN DETALLE
+   ============================= */
+@media print {
+  body {
+    font-size: 10px;
+    padding: 0;
+  }
+
+  .actions,
+  .modal-download,
+  .modal-close {
+    display: none;
+  }
+
+  table {
+    font-size: 10px;
+  }
+}
+

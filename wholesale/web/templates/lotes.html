@@ -1,0 +1,15 @@
+{% extends "layout_listado.html" %}
+
+{% set page_title = "BestCash – Todos los Lotes Disponibles" %}
+{% set header_title = "Lotes Disponibles" %}
+{% set back_url = "../index.html" %}
+
+{% block content %}
+  <div class="desktop-only">
+    {% include "index_table.html" %}
+  </div>
+
+  <div class="mobile-only">
+    {% include "index_cards.html" %}
+  </div>
+{% endblock %}

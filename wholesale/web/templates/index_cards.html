@@ -1,0 +1,38 @@
+<div class="cards">
+{% for pallet in pallets if pallet.status in ('Disponible','Reservado') %}
+  <div class="card">
+    <a href="../lotes/{{ pallet.code }}.html" class="card-link"></a>
+
+    <div class="card-content">
+		<div class="card-header">
+		  <div class="card-left">
+			<div class="card-code">{{ pallet.code }}</div>
+		  </div>
+
+		  <div class="card-right">
+			{% if pallet.status == 'Disponible' %}
+			  <span class="badge badge--ok">Disponible</span>
+			{% elif pallet.status == 'Reservado' %}
+			  <span class="badge badge--warn">Reservado</span>
+			{% else %}
+			  <span class="badge badge--bad">Vendido</span>
+			{% endif %}
+			<div class="card-price">
+			  {{ "%.2f"|format(pallet.precio_final) }} €
+			</div>
+
+			<div class="card-pvp">
+			  PVP: {{ "%.2f"|format(pallet.pvp_total) }} €
+			</div>
+		  </div>
+		</div>
+
+      <div class="card-name">{{ pallet.name }}</div>
+
+      <div class="card-meta">
+        <span>{{ pallet.total_units or 0 }} unidades</span>
+      </div>
+    </div>
+  </div>
+{% endfor %}
+</div>
