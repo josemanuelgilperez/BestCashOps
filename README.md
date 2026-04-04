@@ -66,6 +66,15 @@ python3 wholesale/scripts/run_pipeline.py
 python3 wholesale/scripts/update_status_and_deploy.py
 ```
 
+En el VPS, si guardas wrappers en `$HOME` (como `run_boxes_pipeline.sh`), copia o enlaza el helper del repo:
+
+```bash
+ln -sf ~/BestCashOps/run_status_and_deploy.sh ~/run_status_and_deploy.sh
+~/run_status_and_deploy.sh
+```
+
+(`BESTCASHOPS_ROOT` si el repo no está en `~/BestCashOps`.)
+
 ### Utilidades
 
 Ver `tools/README.md`.
