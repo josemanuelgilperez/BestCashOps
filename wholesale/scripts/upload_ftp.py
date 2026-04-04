@@ -21,6 +21,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+REPO_ROOT = BASE_DIR.parent
+for _p in (str(REPO_ROOT), str(BASE_DIR)):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
 OUTPUT_DIR = BASE_DIR / "web" / "output"
 LOTES_DIR = OUTPUT_DIR / "lotes"
 
@@ -45,7 +50,6 @@ EXCLUIDOS = {
 def obtener_codigos_vendidos():
     """Códigos de pallets Vendido que no se suben (se conservan en remoto)."""
     try:
-        sys.path.insert(0, str(BASE_DIR))
         from db import get_connection
         conn = get_connection()
         cur = conn.cursor()

@@ -65,8 +65,10 @@
 # - Variables de entorno opcionales:
 #     DB_USER, DB_PASSWORD, DB_HOST, DB_NAME
 #
-# - Columnas esperadas en Excel:
-#     asin, units, totalweight (kg), removalreason
+# - Columnas en Excel (nombres flexibles, sin distinguir mayúsculas / espacios):
+#     asin (obligatoria), units | unidades | quantity (obligatoria)
+#     peso: totalweight (kg), totalweight, weight…
+#     removalreason | removal | reason (opcional)
 #
 # ======================================================
 import os
@@ -77,8 +79,10 @@ from dotenv import load_dotenv
 import sys
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if BASE_DIR not in sys.path:
-    sys.path.append(BASE_DIR)
+REPO_ROOT = os.path.dirname(BASE_DIR)
+for _p in (REPO_ROOT, BASE_DIR):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 from db import get_connection
 load_dotenv()
@@ -86,8 +90,6 @@ load_dotenv()
 # ==============================
 # CONFIG
 # ==============================
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-REPO_ROOT = os.path.dirname(BASE_DIR)
 
 
 def _resolve_data_root():
@@ -163,6 +165,49 @@ def classify_reason(r):
     return 'other'
 
 
+def _header_key(name):
+    return re.sub(r"[^a-z0-9]", "", str(name).strip().lower())
+
+
+def _resolve_excel_columns(df):
+    """
+    Devuelve nombres reales de columnas del DataFrame para asin, units, peso y motivo.
+    """
+    by_key = {}
+    for c in df.columns:
+        by_key[_header_key(c)] = c
+
+    def pick(*patterns):
+        for p in patterns:
+            k = _header_key(p)
+            if k in by_key:
+                return by_key[k]
+        return None
+
+    return {
+        "asin": pick("asin"),
+        "units": pick("units", "unidades", "quantity", "qty", "cantidad"),
+        "weight": pick(
+            "totalweightkg",
+            "totalweight",
+            "weightkg",
+            "peso",
+            "pesokg",
+            "totalpeso",
+        ),
+        "reason": pick("removalreason", "removal", "reason", "removalreasoncode"),
+    }
+
+
+def _cell_str(val):
+    if val is None or (isinstance(val, float) and pd.isna(val)):
+        return None
+    s = str(val).strip()
+    if not s or s.lower() == "nan":
+        return None
+    return s
+
+
 # ==============================
 # PROCESO PRINCIPAL
 # ==============================
@@ -188,18 +233,30 @@ def process_file(filepath, mapping):
 
     # --- LEER EXCEL ---
     df = pd.read_excel(filepath)
+    cols = _resolve_excel_columns(df)
+    if not cols["asin"] or not cols["units"]:
+        raise ValueError(
+            "No se encontraron columnas obligatorias 'asin' y 'units' (o equivalentes). "
+            f"Cabeceras en el Excel: {list(df.columns)}"
+        )
+
+    print(
+        f"   Columnas: asin={cols['asin']!r}, units={cols['units']!r}, "
+        f"peso={cols['weight']!r}, motivo={cols['reason']!r}"
+    )
 
     total_units = 0
     total_weight = 0
     overstock = 0
     devoluciones = 0
+    filas_insertadas = 0
 
     for _, row in df.iterrows():
 
-        asin = row.get('asin')
-        units = safe_int(row.get('units'))
-        weight = safe_float(row.get('totalweight (kg)'))
-        reason = row.get('removalreason')
+        asin = _cell_str(row.get(cols["asin"]))
+        units = safe_int(row.get(cols["units"]))
+        weight = safe_float(row.get(cols["weight"])) if cols["weight"] else 0.0
+        reason = row.get(cols["reason"]) if cols["reason"] else None
 
         if not asin or units <= 0:
             total_weight += weight
@@ -224,6 +281,7 @@ def process_file(filepath, mapping):
             VALUES (%s, %s, %s, %s)
         """, (code, asin, units, pvp))
 
+        filas_insertadas += 1
         total_units += units
         total_weight += weight
 
@@ -248,7 +306,13 @@ def process_file(filepath, mapping):
     cursor.close()
     conn.close()
 
-    print(f"✅ {code} procesado")
+    if filas_insertadas == 0:
+        print(
+            f"⚠️ {code}: caja actualizada pero 0 líneas en box_items "
+            f"(revisa ASIN vacíos o unidades ≤ 0 en el Excel)."
+        )
+    else:
+        print(f"✅ {code} procesado | {filas_insertadas} líneas en box_items")
 
 
 def main():

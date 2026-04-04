@@ -6,8 +6,10 @@ from datetime import datetime
 from dotenv import load_dotenv
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if BASE_DIR not in sys.path:
-    sys.path.append(BASE_DIR)
+REPO_ROOT = os.path.dirname(BASE_DIR)
+for _p in (REPO_ROOT, BASE_DIR):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 from db import get_connection
 load_dotenv()

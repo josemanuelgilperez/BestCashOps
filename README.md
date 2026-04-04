@@ -22,6 +22,25 @@ BestCashOps/
 └── requirements.txt
 ```
 
+## Entorno Python
+
+Crear o activar el **virtualenv** del repo e instalar dependencias **con el pip de ese entorno** (no uses el `pip` global del sistema salvo que sepas lo que haces).
+
+```bash
+cd /ruta/a/BestCashOps
+python3 -m venv venv          # solo la primera vez
+source venv/bin/activate       # macOS / Linux
+pip install -r requirements.txt
+```
+
+Sin activar, equivalente:
+
+```bash
+./venv/bin/pip install -r requirements.txt
+```
+
+Los scripts del proyecto deben ejecutarse con el mismo entorno: `python3 ...` tras `source venv/bin/activate`, o `./venv/bin/python3 ...`.
+
 ## Flujos principales
 
 - **Retail (Amazon -> catalogo):**
