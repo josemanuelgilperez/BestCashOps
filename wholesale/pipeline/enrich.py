@@ -195,7 +195,7 @@ def intentar_scraping(asin):
 
     for dominio in dominios:
         try:
-            print(f"🌍 Intentando dominio .{dominio} para ASIN {asin}")
+            print(f"🌍 Intentando dominio .{dominio} para ASIN {asin}", flush=True)
 
             def llamada_crawlbase():
                 url_amazon = f"https://www.amazon.{dominio}/dp/{asin}"
@@ -386,15 +386,36 @@ def actualizar_pvp_ud_desde_fuentes(conn):
           AND bi.asin IS NOT NULL AND bi.asin <> ''
           AND (bi.pvp_ud IS NULL OR bi.pvp_ud = 0)
     """)
+    n = cur.rowcount
     cur.close()
+    return n
 
 
 # ------------------------------
 # MAIN
 # ------------------------------
 if __name__ == "__main__":
+    try:
+        sys.stdout.reconfigure(line_buffering=True)
+    except Exception:
+        pass
+
+    print(
+        "📡 Buscando ASIN de cajas Disponible/Reservado que aún no están en amazon_scraped_products...",
+        flush=True,
+    )
+    t_query = time.perf_counter()
     registros = get_asins_para_procesar()
-    print(f"🔍 ASINs a procesar: {len(registros)}")
+    print(
+        f"🔍 ASINs a enriquecer (scraping/IA): {len(registros)} "
+        f"({time.perf_counter() - t_query:.1f}s)",
+        flush=True,
+    )
+    if not registros:
+        print(
+            "ℹ️  Nada que insertar en amazon_scraped_products: todos esos ASIN ya tienen ficha.",
+            flush=True,
+        )
 
     conn = get_connection()
     cursor = conn.cursor()
@@ -402,7 +423,7 @@ if __name__ == "__main__":
     try:
         for i, record in enumerate(registros, start=1):
             asin = record["asin"]
-            print(f"\n🔄 [{i}/{len(registros)}] Procesando {asin}")
+            print(f"\n🔄 [{i}/{len(registros)}] Procesando {asin}", flush=True)
 
             try:
                 product, dominio = intentar_scraping(asin)
@@ -411,7 +432,7 @@ if __name__ == "__main__":
                 # CASO 1: SCRAPING DISPONIBLE
                 # ======================================================
                 if product:
-                    print(f"✅ Scraping encontrado en .{dominio}")
+                    print(f"✅ Scraping encontrado en .{dominio}", flush=True)
                     scraping_domain = dominio or "es"
 
                     titulo_original = product.get("name", "").strip()
@@ -465,13 +486,13 @@ if __name__ == "__main__":
                         "fecha_scraping": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     }
 
-                    print("➡️ Datos obtenidos por SCRAPING")
+                    print("➡️ Datos obtenidos por SCRAPING", flush=True)
 
                 # ======================================================
                 # CASO 2: FALLBACK AMAZON_DELIVERY
                 # ======================================================
                 else:
-                    print("⚠️ Scraping no disponible, usando fallback amazon_delivery")
+                    print("⚠️ Scraping no disponible, usando fallback amazon_delivery", flush=True)
 
                     item_desc = record.get("ItemDesc") or asin
 
@@ -513,28 +534,39 @@ if __name__ == "__main__":
                         "fecha_scraping": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     }
 
-                    print("➡️ Datos obtenidos por DELIVERY")
+                    print("➡️ Datos obtenidos por DELIVERY", flush=True)
 
                 # 🔹 Normalización robusta antes de insertar
                 data = {k: normalize_for_mysql(v) for k, v in data.items()}
 
+                print(f"   💾 Insertando en amazon_scraped_products…", flush=True)
                 insertar_scraped_data(data, cursor)
                 conn.commit()
+                print(f"   ✅ Guardado {asin}", flush=True)
 
                 time.sleep(0.5)
 
             except Exception as e:
                 conn.rollback()
-                print(f"❌ Error procesando {asin}: {e}")
+                print(f"❌ Error procesando {asin}: {e}", flush=True)
 
         # Rellenar pvp_ud usando scraping y/o UnitRecovery como fallback
         try:
-            actualizar_pvp_ud_desde_fuentes(conn)
+            print(
+                "\n📊 Actualizando box_items.pvp_ud (UPDATE masivo con JOINs; puede tardar varios minutos)…",
+                flush=True,
+            )
+            t_pvp = time.perf_counter()
+            nrows = actualizar_pvp_ud_desde_fuentes(conn)
             conn.commit()
-            print("✅ pvp_ud actualizado en box_items (incluyendo fallback UnitRecovery)")
+            print(
+                f"✅ pvp_ud aplicado en box_items | filas afectadas (rowcount MySQL): {nrows} "
+                f"| {time.perf_counter() - t_pvp:.1f}s",
+                flush=True,
+            )
         except Exception as e:
             conn.rollback()
-            print(f"❌ Error actualizando pvp_ud: {e}")
+            print(f"❌ Error actualizando pvp_ud: {e}", flush=True)
 
     finally:
         cursor.close()
