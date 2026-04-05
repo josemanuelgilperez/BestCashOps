@@ -20,7 +20,7 @@ from db import get_connection
 from unidecode import unidecode
 from openai import OpenAI
 import boto3
-from botocore.exceptions import ClientError
+from botocore.exceptions import ProfileNotFound
 import time
 from io import BytesIO
 
@@ -35,9 +35,38 @@ CRAWLBASE_TOKEN = os.getenv("CRAWLBASE_TOKEN", "9a_E5QjtbAz2sAbVt2U3vQ")
 IMAGE_BUCKET = 'bestcashproductimages'
 NO_IMAGE_URL = f"https://{IMAGE_BUCKET}.s3.amazonaws.com/image_not_found.jpg"
 
-# Configuración S3
-session = boto3.Session(profile_name='bestcash')
-s3 = session.client('s3')
+_s3_client = None
+
+
+def _get_s3_client():
+    """Cliente S3 perezoso: claves en env o cadena por defecto; tolera AWS_PROFILE sin perfil en disco."""
+    global _s3_client
+    if _s3_client is not None:
+        return _s3_client
+
+    key = os.environ.get("AWS_ACCESS_KEY_ID")
+    secret = os.environ.get("AWS_SECRET_ACCESS_KEY")
+    if key and secret:
+        _s3_client = boto3.client(
+            "s3",
+            aws_access_key_id=key,
+            aws_secret_access_key=secret,
+            aws_session_token=os.environ.get("AWS_SESSION_TOKEN") or None,
+        )
+        return _s3_client
+
+    try:
+        _s3_client = boto3.client("s3")
+    except ProfileNotFound:
+        old_profile = os.environ.pop("AWS_PROFILE", None)
+        try:
+            _s3_client = boto3.client("s3")
+        finally:
+            if old_profile is not None:
+                os.environ["AWS_PROFILE"] = old_profile
+
+    return _s3_client
+
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -71,7 +100,7 @@ def generate_shopify_handle(title, asin):
 
 def get_existing_images_from_s3(asin):
     try:
-        resp = s3.list_objects_v2(Bucket=IMAGE_BUCKET, Prefix=f"{asin}/")
+        resp = _get_s3_client().list_objects_v2(Bucket=IMAGE_BUCKET, Prefix=f"{asin}/")
         if "Contents" in resp:
             urls = [f"https://{IMAGE_BUCKET}.s3.amazonaws.com/{obj['Key']}" for obj in resp["Contents"]]
             print(f"   ✅ Imágenes ya existen en S3 para {asin}: {len(urls)} encontradas")
@@ -98,7 +127,7 @@ def download_and_upload_images(asin, imagenes, titulo_amazon):
             if response.status_code == 200:
                 image_bytes = BytesIO(response.content)
 
-                s3.upload_fileobj(
+                _get_s3_client().upload_fileobj(
                     image_bytes,
                     IMAGE_BUCKET,
                     s3_key,
