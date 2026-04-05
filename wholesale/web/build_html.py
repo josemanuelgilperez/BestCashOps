@@ -75,6 +75,18 @@ def slug_categoria(cat):
     return slugify(cat) if cat else ""
 
 
+def _coalesce_num(value, default=0.0):
+    """Evita None en plantillas Jinja (format %.2f)."""
+    if value is None:
+        return default
+    if isinstance(value, Decimal):
+        return float(value)
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def pallet_a_dataset_entry(p):
     """Convierte un pallet de BD al formato dataset (para index) sin generar HTML."""
     raw = p.get("category")
@@ -85,11 +97,11 @@ def pallet_a_dataset_entry(p):
         "name": p["name"],
         "category_name": cat,
         "category_page": f"../categorias/{slug}.html",
-        "total_units": p.get("total_units"),
-        "pvp_total": p.get("pvp_total"),
-        "precio_final": p.get("precio_final"),
+        "total_units": p.get("total_units") or 0,
+        "pvp_total": _coalesce_num(p.get("pvp_total")),
+        "precio_final": _coalesce_num(p.get("precio_final")),
         "status": norm_status(p.get("status")),
-        "discount": p.get("discount"),
+        "discount": _coalesce_num(p.get("discount")),
         "weight": p.get("weight"),
         "devoluciones": p.get("devoluciones"),
         "overstock": p.get("overstock"),
@@ -319,11 +331,11 @@ def generar_ficha_pallet(p, items):
         "name": p["name"],
         "category_name": p["category"],
         "category_page": f"../categorias/{category_slug}.html",
-        "total_units": p["total_units"],
-        "pvp_total": p["pvp_total"],
-        "precio_final": p["precio_final"],
+        "total_units": p.get("total_units") or 0,
+        "pvp_total": _coalesce_num(p.get("pvp_total")),
+        "precio_final": _coalesce_num(p.get("precio_final")),
         "status": norm_status(p["status"]),
-        "discount": p["discount"],
+        "discount": _coalesce_num(p.get("discount")),
         "weight": p.get("weight"),
         "devoluciones": p.get("devoluciones"),
         "overstock": p.get("overstock"),

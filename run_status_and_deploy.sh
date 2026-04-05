@@ -1,25 +1,51 @@
 #!/usr/bin/env bash
 # Edita wholesale/data/update_status.csv y ejecuta update_status_and_deploy.py
 #
-# En el VPS suele vivir en $HOME junto a run_boxes_pipeline.sh:
-#   cp ~/BestCashOps/run_status_and_deploy.sh ~/
+# La raíz del repo se deduce de ESTE fichero (resolviendo symlinks), así el mismo
+# script vale en Mac (p. ej. ~/Documents/GitHub/BestCashOps) y en VPS (~/BestCashOps).
+#
+# Recomendado: enlace desde $HOME al script dentro del repo:
+#   ln -sf /ruta/completa/a/BestCashOps/run_status_and_deploy.sh ~/run_status_and_deploy.sh
 #   chmod +x ~/run_status_and_deploy.sh
 #   ~/run_status_and_deploy.sh
+#   Desde $HOME también: ./run_status_and_deploy.sh (equivalente si el .sh está ahí)
 #
-# O enlace: ln -sf ~/BestCashOps/run_status_and_deploy.sh ~/run_status_and_deploy.sh
+# También puedes ejecutarlo por ruta explícita:
+#   bash ~/Documents/GitHub/BestCashOps/run_status_and_deploy.sh
 #
-# Si el repo no está en ~/BestCashOps: export BESTCASHOPS_ROOT=/ruta/al/repo
+# Override opcional: export BESTCASHOPS_ROOT=/otra/ruta/al/repo
 set -euo pipefail
 
-REPO_ROOT="${BESTCASHOPS_ROOT:-${HOME}/BestCashOps}"
-CSV="${REPO_ROOT}/wholesale/data/update_status.csv"
-EXAMPLE="${REPO_ROOT}/wholesale/data/update_status.csv.example"
+# Raíz del repo = directorio donde está este .sh (tras seguir enlaces simbólicos).
+_resolve_repo_root() {
+  local src="${BASH_SOURCE[0]}"
+  while [[ -L "$src" ]]; do
+    local dir
+    dir="$(cd -P "$(dirname "$src")" && pwd)"
+    local target
+    target="$(readlink "$src")"
+    [[ "$target" != /* ]] && target="${dir}/${target}"
+    src="$target"
+  done
+  cd -P "$(dirname "$src")" && pwd
+}
 
-if [[ ! -d "$REPO_ROOT" ]]; then
-  echo "No existe el repo en: $REPO_ROOT"
-  echo "Define BESTCASHOPS_ROOT o coloca BestCashOps en ${HOME}/BestCashOps"
+if [[ -n "${BESTCASHOPS_ROOT:-}" ]]; then
+  REPO_ROOT="$(cd "$BESTCASHOPS_ROOT" && pwd)"
+else
+  REPO_ROOT="$(_resolve_repo_root)"
+fi
+
+PY="${REPO_ROOT}/wholesale/scripts/update_status_and_deploy.py"
+if [[ ! -f "$PY" ]]; then
+  echo "No encuentro el repo BestCashOps en: $REPO_ROOT"
+  echo "  (falta $PY)"
+  echo "Ejecuta este script desde la raíz del repo, o enlázalo desde ahí, o define BESTCASHOPS_ROOT."
   exit 1
 fi
+
+CSV="${REPO_ROOT}/wholesale/data/update_status.csv"
+EXAMPLE="${REPO_ROOT}/wholesale/data/update_status.csv.example"
 
 mkdir -p "$(dirname "$CSV")"
 if [[ ! -f "$CSV" ]]; then
@@ -38,4 +64,4 @@ if [[ -f "${REPO_ROOT}/venv/bin/activate" ]]; then
   source "${REPO_ROOT}/venv/bin/activate"
 fi
 
-exec python3 "${REPO_ROOT}/wholesale/scripts/update_status_and_deploy.py"
+exec python3 "$PY"
