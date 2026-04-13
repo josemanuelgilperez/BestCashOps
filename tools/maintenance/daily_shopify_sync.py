@@ -26,7 +26,8 @@ HEADERS = {
 }
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CSV_DIR = os.path.join(BASE_DIR, "wallapop_input")
+CSV_DIR = os.path.join(BASE_DIR, "../data/wallapop_input")
+CSV_DIR = os.path.abspath(CSV_DIR)
 PROCESSED_DIR = os.path.join(CSV_DIR, "processed")
 
 os.makedirs(CSV_DIR, exist_ok=True)
