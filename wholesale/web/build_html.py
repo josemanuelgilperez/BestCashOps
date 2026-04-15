@@ -34,12 +34,24 @@ os.makedirs(ASSETS_DST, exist_ok=True)
 os.makedirs(LOTES_DIR, exist_ok=True)
 os.makedirs(CATEGORIAS_DIR, exist_ok=True)
 
-# Copiar CSS/JS a output/assets para que ../assets/ funcione en los HTML generados
-if os.path.isdir(ASSETS_SRC):
-    for name in ("styles.css", "table-sort.js", "pallet-modal.js", "summary-sort.js"):
+def _sync_assets_to_output():
+    """
+    Copia todo wholesale/web/assets → output/assets (ficheros y subcarpetas como img/).
+    Rutas en plantillas: lotes/* y categorias/* usan ../assets/; resumen_general usa assets/.
+    """
+    if not os.path.isdir(ASSETS_SRC):
+        return
+    os.makedirs(ASSETS_DST, exist_ok=True)
+    for name in os.listdir(ASSETS_SRC):
         src = os.path.join(ASSETS_SRC, name)
-        if os.path.isfile(src):
-            shutil.copy2(src, os.path.join(ASSETS_DST, name))
+        dst = os.path.join(ASSETS_DST, name)
+        if os.path.isdir(src):
+            shutil.copytree(src, dst, dirs_exist_ok=True)
+        elif os.path.isfile(src):
+            shutil.copy2(src, dst)
+
+
+_sync_assets_to_output()
 
 # =================================================
 # TEMPLATES
@@ -167,6 +179,28 @@ def cargar_pallets_por_codigos(codes):
         FROM boxes b
         WHERE b.show_pallet = 1
           AND b.status IN ('Disponible', 'Reservado')
+          AND b.code IN ({placeholders})
+    """, tuple(codes))
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return rows
+
+
+def cargar_pallets_por_codigos_todos(codes):
+    """Carga pallets para los códigos dados con cualquier estado público."""
+    if not codes:
+        return []
+    placeholders = ",".join(["%s"] * len(codes))
+    conn = get_conn()
+    cur = conn.cursor(dictionary=True)
+    cur.execute(f"""
+        SELECT
+            b.code, b.name, b.status, b.category,
+            b.units AS total_units, b.pvp_total, b.precio_final,
+            b.discount, b.weight, b.devoluciones, b.overstock
+        FROM boxes b
+        WHERE b.show_pallet = 1
           AND b.code IN ({placeholders})
     """, tuple(codes))
     rows = cur.fetchall()

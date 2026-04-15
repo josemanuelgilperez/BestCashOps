@@ -33,6 +33,7 @@ from db import get_connection
 from web.build_html import (
     cargar_pallets,
     cargar_pallets_por_codigos,
+    cargar_pallets_por_codigos_todos,
     cargar_items_por_codigos,
     generar_ficha_pallet,
     generar_resumen,
@@ -123,18 +124,18 @@ def build_incremental(affected_codes: set):
     if not affected_codes:
         return []
 
-    # Palettes a regenerar (solo Disponible/Reservado del CSV)
-    pallets_afectados = cargar_pallets_por_codigos(affected_codes)
-    codes_a_regenerar = {p["code"] for p in pallets_afectados}
+    # Pallets afectados con cualquier estado: su ficha debe reflejar el estado nuevo.
+    pallets_afectados_todos = cargar_pallets_por_codigos_todos(affected_codes)
+    codes_a_regenerar = {p["code"] for p in pallets_afectados_todos}
 
-    # 1) Fichas individuales solo para los del CSV que están Disponible/Reservado
+    # 1) Fichas individuales para todos los del CSV, incluido Vendido.
     archivos_subir = []
-    if pallets_afectados:
+    if pallets_afectados_todos:
         items = agrupar_items(cargar_items_por_codigos(codes_a_regenerar))
-        for p in pallets_afectados:
+        for p in pallets_afectados_todos:
             generar_ficha_pallet(p, items.get(p["code"], []))
             archivos_subir.append(f"lotes/{p['code']}.html")
-        print(f"📄 Regeneradas {len(pallets_afectados)} fichas de pallet")
+        print(f"📄 Regeneradas {len(pallets_afectados_todos)} fichas de pallet")
 
     # 2) Lista completa para index y pallets.json
     todos_pallets = cargar_pallets()

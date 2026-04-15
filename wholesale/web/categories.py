@@ -39,14 +39,15 @@ def generar_paginas_categoria(pallets, solo_categorias=None):
     env = Environment(loader=FileSystemLoader(TEMPLATE_DIR))
     template = env.get_template("index_category.html")
 
-    categorias = sorted({
+    categorias_en_dataset = {
         p["category_name"]
         for p in pallets
         if p.get("category_name")
-    })
+    }
     if solo_categorias is not None:
-        solo = set(solo_categorias)
-        categorias = [c for c in categorias if c in solo]
+        categorias = sorted(set(solo_categorias))
+    else:
+        categorias = sorted(categorias_en_dataset)
 
     for categoria in categorias:
         slug = slugify(categoria)
