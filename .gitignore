@@ -49,8 +49,8 @@ venv/
 # ======================================
 # TOOLS DATA / OUTPUTS
 # ======================================
-tools/data/*.csv
-tools/data/*.txt
+tools/data/**/*.csv
+tools/data/**/*.txt
 !tools/data/.gitkeep
 tools/printing/*.pdf
 tools/printing/pallets_asin_precios_amazon.csv

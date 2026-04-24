@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" type="image/jpeg"
-        href="//tienda.bestcash.es/cdn/shop/files/LOGO_BESTCASH.jpg?crop=center&height=128&v=1687771017&width=128">
+  {% set logo_url = "https://tienda.bestcash.es/cdn/shop/files/LOGO_BESTCASH.jpg?crop=center&height=128&v=1687771017&width=128" %}
+  <link rel="icon" type="image/jpeg" href="{{ logo_url }}">
   <link rel="stylesheet" href="../assets/styles.css">
 
   <title>{% block page_title %}BestCash{% endblock %}</title>
@@ -13,7 +13,7 @@
 <body>
 
 <header>
-  <img src="../assets/img/logo-bestcash.png" class="logo">
+  <img src="{{ logo_url }}" class="logo" alt="BestCash">
 
   <div>
     <h1>{% block header_title %}{% endblock %}</h1>

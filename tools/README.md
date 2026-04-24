@@ -29,7 +29,7 @@ Este proceso carga un CSV de vendidos de Wallapop y actualiza stock/estado en Sh
 1) Subir CSV desde local al VPS:
 
 ```bash
-scp tools/data/wallapop_input/wallapop_2026_04_01.csv root@212.227.90.202:/root/BestCashOps/tools/data/wallapop_input/
+scp tools/data/wallapop_input/wallapop_2026_04_14.csv root@212.227.90.202:/root/BestCashOps/tools/data/wallapop_input/
 ```
 
 2) (Opcional) Verificar en VPS:
