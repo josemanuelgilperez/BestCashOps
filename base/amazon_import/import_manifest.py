@@ -18,6 +18,8 @@ cursor = db.cursor()
 # DIRECTORIO DE ENTRADA
 # -----------------------------
 DIRECTORIO = os.path.join(os.path.dirname(__file__), "procesar")
+PROCESADOS_DIR = os.path.join(os.path.dirname(__file__), "procesados")
+os.makedirs(PROCESADOS_DIR, exist_ok=True)
 EXTENSION = "*.txt"
 tabla_destino = "amazon_delivery"
 
@@ -50,7 +52,9 @@ sql = f"INSERT IGNORE INTO {tabla_destino} ({col_names}) VALUES ({placeholders})
 archivos = sorted(glob.glob(os.path.join(DIRECTORIO, EXTENSION)))
 if not archivos:
     print(f"❌ No se encontraron archivos .txt en el directorio '{DIRECTORIO}'.")
-    exit(1)
+    cursor.close()
+    db.close()
+    exit(0)
 
 print(f"📂 Directorio de trabajo: {DIRECTORIO}")
 print(f"📦 Archivos encontrados: {len(archivos)}")
@@ -84,6 +88,14 @@ for archivo in archivos:
 
         print(f"   ✅ Leídas: {total} | Insertadas nuevas: {insertadas} | Duplicadas: {total - insertadas}")
         resumen.append((nombre, total, insertadas, total - insertadas))
+
+        # mover archivo a procesados
+        destino = os.path.join(PROCESADOS_DIR, nombre)
+        if os.path.exists(destino):
+            destino = os.path.join(PROCESADOS_DIR, f"{nombre}_{int(os.path.getmtime(archivo))}")
+
+        os.rename(archivo, destino)
+        print(f"   📁 Movido a procesados: {destino}")
 
     except Exception as e:
         print(f"   ❌ Error procesando {nombre}: {e}")

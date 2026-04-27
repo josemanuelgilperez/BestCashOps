@@ -53,4 +53,5 @@ tools/data/**/*.csv
 tools/data/**/*.txt
 !tools/data/.gitkeep
 tools/printing/*.pdf
-tools/printing/pallets_asin_precios_amazon.csv
+tools/printing/pallets_asin_precios_amazon.csvtools/data/processed/
+*.xlsx
