@@ -8,6 +8,7 @@ from urllib.request import urlopen
 import mysql.connector
 from mysql.connector import Error
 from openai import OpenAI
+import sys
 
 # Configuración directa de la base de datos
 destination_db_config = {
@@ -131,7 +132,7 @@ def insert_item(cursor, connection, code, reference_id, shop_id, price, ok_onlin
     connection.commit()
 
 def main():
-    csv_entrada = 'nuevos_productos.csv'
+   csv_entrada = sys.argv[1]
     scraping_csv = 'amazon_info.csv'
     asin_procesados = set()
 
