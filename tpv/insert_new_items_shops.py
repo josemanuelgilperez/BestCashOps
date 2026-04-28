@@ -132,7 +132,7 @@ def insert_item(cursor, connection, code, reference_id, shop_id, price, ok_onlin
     connection.commit()
 
 def main():
-   csv_entrada = sys.argv[1]
+    csv_entrada = sys.argv[1]
     scraping_csv = 'amazon_info.csv'
     asin_procesados = set()
 
