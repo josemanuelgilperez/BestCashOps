@@ -140,7 +140,9 @@ def main():
     cursor = connection.cursor(dictionary=True, buffered=True)
     print("✅ Conectado a la base de datos")
 
-    with open(csv_entrada, 'r', encoding='utf-8') as f:
+    # Some upstream CSV exporters prepend a UTF-8 BOM, which turns "item"
+    # into "\ufeffitem" for DictReader. utf-8-sig strips it transparently.
+    with open(csv_entrada, 'r', encoding='utf-8-sig', newline='') as f:
         rows = list(csv.DictReader(f))
 
     with open(scraping_csv, 'a', newline='', encoding='utf-8') as out_csv:
