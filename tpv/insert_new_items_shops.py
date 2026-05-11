@@ -9,13 +9,16 @@ import mysql.connector
 from mysql.connector import Error
 from openai import OpenAI
 import sys
+from dotenv import find_dotenv, load_dotenv
+
+load_dotenv(find_dotenv())
 
 # Configuración directa de la base de datos
 destination_db_config = {
-    'user': 'admin',
-    'password': '23092023BCdb',
-    'host': 'bestcash.cvsxzrox0hah.eu-west-1.rds.amazonaws.com',
-    'database': 'bestcash_rds'
+    'user': os.getenv('DB_USER', 'bestcash_app'),
+    'password': os.getenv('DB_PASSWORD', 'Bc_TPV_2026!kjDERZtm#82'),
+    'host': os.getenv('DB_HOST', '82.223.203.117'),
+    'database': os.getenv('DB_NAME', 'bestcash_rds')
 }
 
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))

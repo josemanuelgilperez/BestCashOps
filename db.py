@@ -6,10 +6,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 DB_CONFIG = {
-    "user": os.getenv("DB_USER"),
-    "password": os.getenv("DB_PASSWORD"),
-    "host": os.getenv("DB_HOST"),
-    "database": os.getenv("DB_NAME"),
+    "user": os.getenv("DB_USER", "bestcash_app"),
+    "password": os.getenv("DB_PASSWORD", "Bc_TPV_2026!kjDERZtm#82"),
+    "host": os.getenv("DB_HOST", "82.223.203.117"),
+    "database": os.getenv("DB_NAME", "bestcash_rds"),
 }
 
 
@@ -31,4 +31,3 @@ def get_pool(pool_name: str = "bestcash_pool", pool_size: int = 5):
             **DB_CONFIG,
         )
     return _pool
-

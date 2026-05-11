@@ -7,6 +7,9 @@ import csv
 import requests
 import mysql.connector
 from datetime import datetime
+from dotenv import find_dotenv, load_dotenv
+
+load_dotenv(find_dotenv())
 
 # =====================================================
 # CONFIG
@@ -41,10 +44,10 @@ RATE_LIMIT_SLEEP = 0.4
 # =====================================================
 def get_db_connection():
     return mysql.connector.connect(
-        host="bestcash.cvsxzrox0hah.eu-west-1.rds.amazonaws.com",
-        user="admin",
-        password="23092023BCdb",
-        database="bestcash_rds",
+        host=os.getenv("DB_HOST", "82.223.203.117"),
+        user=os.getenv("DB_USER", "bestcash_app"),
+        password=os.getenv("DB_PASSWORD", "Bc_TPV_2026!kjDERZtm#82"),
+        database=os.getenv("DB_NAME", "bestcash_rds"),
         autocommit=True
     )
 

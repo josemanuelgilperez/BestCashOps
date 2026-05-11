@@ -16,9 +16,9 @@ from unidecode import unidecode
 load_dotenv(find_dotenv())
 
 db_config = {
-    'user': os.getenv('DB_USER', 'admin'),
-    'password': os.getenv('DB_PASSWORD', '23092023BCdb'),
-    'host': os.getenv('DB_HOST', 'bestcash.cvsxzrox0hah.eu-west-1.rds.amazonaws.com'),
+    'user': os.getenv('DB_USER', 'bestcash_app'),
+    'password': os.getenv('DB_PASSWORD', 'Bc_TPV_2026!kjDERZtm#82'),
+    'host': os.getenv('DB_HOST', '82.223.203.117'),
     'database': os.getenv('DB_NAME', 'bestcash_rds')
 }
 
