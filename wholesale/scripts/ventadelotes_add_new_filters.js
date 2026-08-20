@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 
 const DEFAULT_NEW_DAYS = 14;
-const DEFAULT_INITIAL_NEW_LIMIT = 12;
+const DEFAULT_INITIAL_NEW_LIMIT = 95;
 const STATE_RELATIVE_PATH = path.join('assets', 'publication-metadata.json');
 const CSS_RELATIVE_PATH = path.join('assets', 'new-lots.css');
 const JS_RELATIVE_PATH = path.join('assets', 'new-lots.js');
@@ -54,6 +54,13 @@ function buildConfig() {
     siteDir: path.resolve(siteDir),
     newDays: Number(args['new-days'] || process.env.VDL_NEW_DAYS || DEFAULT_NEW_DAYS),
     initialNewLimit: Number(
+      args['initial-new-limit'] ||
+      process.env.VDL_INITIAL_NEW_LIMIT ||
+      DEFAULT_INITIAL_NEW_LIMIT,
+    ),
+    minimumNewCount: Number(
+      args['minimum-new-count'] ||
+      process.env.VDL_MINIMUM_NEW_COUNT ||
       args['initial-new-limit'] ||
       process.env.VDL_INITIAL_NEW_LIMIT ||
       DEFAULT_INITIAL_NEW_LIMIT,
@@ -170,9 +177,11 @@ function writeState(siteDir, state) {
 function comparePalletCodesDesc(a, b) {
   const codeA = String(a.code || a);
   const codeB = String(b.code || b);
+  const numberCompare = Number(codeB.replace(/\D/g, '')) - Number(codeA.replace(/\D/g, ''));
+  if (numberCompare !== 0) return numberCompare;
   const prefixCompare = codeB.slice(0, 2).localeCompare(codeA.slice(0, 2));
   if (prefixCompare !== 0) return prefixCompare;
-  return Number(codeB.replace(/\D/g, '')) - Number(codeA.replace(/\D/g, ''));
+  return codeB.localeCompare(codeA);
 }
 
 function updateState(siteDir, pallets, config, now = new Date()) {
@@ -222,6 +231,28 @@ function updateState(siteDir, pallets, config, now = new Date()) {
     };
   }
 
+  const minimumNewCount = Math.max(0, Number(config.minimumNewCount || 0));
+  if (minimumNewCount > 0) {
+    const currentNewCodes = new Set(
+      Object.entries(next.pallets)
+        .filter(([, pallet]) => (
+          pallet.status === 'published' &&
+          isWithinDays(pallet.current_published_at || pallet.first_published_at, now, config.newDays)
+        ))
+        .map(([code]) => code),
+    );
+
+    for (const pallet of [...pallets].sort(comparePalletCodesDesc)) {
+      if (currentNewCodes.size >= minimumNewCount) break;
+      if (currentNewCodes.has(pallet.code)) continue;
+      const entry = next.pallets[pallet.code];
+      if (!entry || entry.status !== 'published') continue;
+      entry.current_published_at = nowIso;
+      entry.last_changed_at = entry.last_changed_at || nowIso;
+      currentNewCodes.add(pallet.code);
+    }
+  }
+
   for (const [code, existing] of Object.entries(next.pallets)) {
     if (visibleCodes.has(code)) continue;
     next.pallets[code] = {
@@ -253,6 +284,36 @@ function getNewCodes(state, now = new Date()) {
   );
 }
 
+function getPublicListCodes(siteDir) {
+  const listPath = path.join(siteDir, 'lotes', 'index.html');
+  if (!fs.existsSync(listPath)) return [];
+
+  const seen = new Set();
+  const codes = [];
+  const html = readText(listPath);
+  const matches = html.matchAll(/(?:href=["'][^"']*lotes\/|data-pallet-code=["'])([A-Z]{2}\d{4})(?:\.html|["'])/gi);
+
+  for (const match of matches) {
+    const code = match[1].toUpperCase();
+    if (seen.has(code)) continue;
+    seen.add(code);
+    codes.push(code);
+  }
+
+  return codes;
+}
+
+function resolveNewCodes(siteDir, state, config, now = new Date()) {
+  const minimumNewCount = Math.max(0, Number(config.minimumNewCount || 0));
+  const publicCodes = getPublicListCodes(siteDir);
+
+  if (minimumNewCount > 0 && publicCodes.length) {
+    return new Set(publicCodes.sort(comparePalletCodesDesc).slice(0, minimumNewCount));
+  }
+
+  return getNewCodes(state, now);
+}
+
 function relativeAssetPrefix(filePath, siteDir) {
   const relDir = path.dirname(path.relative(siteDir, filePath)).replaceAll(path.sep, '/');
   return relDir === '.' ? '' : `${relDir.split('/').map(() => '..').join('/')}/`;
@@ -271,25 +332,9 @@ function ensureScript(html, prefix) {
 }
 
 function ensureIndexSection(html, state, newCodes) {
-  const newPallets = [...newCodes]
-    .map((code) => ({ code, ...(state.pallets[code] || {}) }))
-    .sort(comparePalletCodesDesc)
-    .slice(0, 12);
-
-  const cards = newPallets.map((pallet) => `
-          <a href="${escapeHtml(pallet.href || `lotes/${pallet.code}.html`)}" class="new-lot-card">
-            <span class="new-lot-badge">Nuevo</span>
-            <strong>${escapeHtml(pallet.code)}</strong>
-            <small>${escapeHtml(pallet.name || pallet.title || 'Lote disponible')}</small>
-          </a>`).join('');
-
   const section = `
       <section class="new-lots-home mt-4" aria-label="Ultimos lotes publicados">
-        <h2 class="h5 fw-bold text-uppercase mb-3">Últimos publicados</h2>
-        <div class="new-lots-home-grid">${cards || '<p class="small mb-0">No hay lotes nuevos ahora mismo.</p>'}</div>
-        <div class="mt-3">
-          <a href="lotes/index.html?f=nuevos" class="text-white text-decoration-underline small text-uppercase">Ver todos los nuevos</a>
-        </div>
+        <a href="lotes/index.html?f=nuevos" class="new-lots-home-button">Ver nuevos publicados (${newCodes.size})</a>
       </section>`;
 
   if (html.includes('class="new-lots-home')) {
@@ -327,10 +372,14 @@ function markTableRows(html, newCodes) {
       .replace(/\sdata-new-lot=["'][^"']*["']/gi, '');
     nextAttrs += ` data-pallet-code="${code}" data-new-lot="${isNew ? '1' : '0'}"`;
     let nextBody = body.replace(/<span class="new-lot-badge">Nuevo<\/span>\s*/gi, '');
+    nextBody = nextBody.replace(
+      new RegExp(`(<span class="lot-code-with-badge">\\s*)(<a[^>]+lotes/${code}\\.html[^>]*>\\s*${code}\\s*</a>)(\\s*</span>)`, 'i'),
+      '$2',
+    );
     if (isNew) {
       nextBody = nextBody.replace(
         new RegExp(`(<a[^>]+lotes/${code}\\.html[^>]*>\\s*${code}\\s*</a>)`, 'i'),
-        '$1 <span class="new-lot-badge">Nuevo</span>',
+        '<span class="lot-code-with-badge">$1<span class="new-lot-badge">Nuevo</span></span>',
       );
     }
     return `<tr${nextAttrs}>${nextBody}</tr>`;
@@ -348,8 +397,15 @@ function markCards(html, newCodes) {
       .replace(/\sdata-new-lot=["'][^"']*["']/gi, '');
     nextAttrs += ` data-pallet-code="${code}" data-new-lot="${isNew ? '1' : '0'}"`;
     let nextBody = body.replace(/<span class="new-lot-badge">Nuevo<\/span>\s*/gi, '');
+    nextBody = nextBody.replace(
+      /<div class="card-code-row">\s*(<div class="card-code">\s*[A-Z]{2}\d{4}\s*<\/div>)\s*<\/div>/gi,
+      '$1',
+    );
     if (isNew) {
-      nextBody = nextBody.replace(/(<div class="card-code">\s*[A-Z]{2}\d{4}\s*<\/div>)/i, '$1<span class="new-lot-badge">Nuevo</span>');
+      nextBody = nextBody.replace(
+        /(<div class="card-code">\s*[A-Z]{2}\d{4}\s*<\/div>)/i,
+        '<div class="card-code-row">$1<span class="new-lot-badge">Nuevo</span></div>',
+      );
     }
     return `<div class="card"${nextAttrs}>${nextBody}</div>`;
   });
@@ -392,42 +448,28 @@ function writeAssets(siteDir) {
   ensureDir(path.dirname(cssPath));
 
   writeText(cssPath, `.new-lots-home {
-  margin-top: 28px;
+  margin-top: 22px;
 }
 
-.new-lots-home-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 10px;
-}
-
-.new-lot-card {
-  display: block;
-  padding: 12px;
-  border: 1px solid rgba(255, 255, 255, .45);
+.new-lots-home-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 18px;
   border-radius: 8px;
-  color: #fff;
-  background: rgba(0, 0, 0, .16);
+  background: #fff;
+  color: #111827;
+  font-weight: 800;
+  line-height: 1.2;
   text-decoration: none;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, .16);
 }
 
-.new-lot-card:hover {
-  color: #fff;
-  border-color: #fff;
+.new-lots-home-button:hover {
+  color: #111827;
+  background: #f9fafb;
   text-decoration: none;
-}
-
-.new-lot-card strong {
-  display: block;
-  margin-top: 8px;
-  font-size: 20px;
-}
-
-.new-lot-card small {
-  display: block;
-  margin-top: 4px;
-  line-height: 1.3;
-  opacity: .92;
 }
 
 .new-lot-controls {
@@ -453,24 +495,33 @@ function writeAssets(siteDir) {
   color: #fff;
 }
 
+.lot-code-with-badge,
+.card-code-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  vertical-align: middle;
+}
+
 .new-lot-badge {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   width: fit-content;
-  margin-left: 6px;
-  padding: 3px 8px;
+  margin: 0;
+  padding: 2px 7px;
   border-radius: 999px;
   background: #16a34a;
   color: #fff;
   font-size: 11px;
   font-weight: 800;
-  line-height: 1.2;
+  line-height: 1.1;
   text-transform: uppercase;
-  vertical-align: middle;
 }
 
 .card .new-lot-badge {
-  margin: 6px 0 0;
+  transform: translateY(1px);
 }
 
 .new-lot-empty {
@@ -549,7 +600,7 @@ function main() {
 
   const now = new Date();
   const state = updateState(config.siteDir, pallets, config, now);
-  const newCodes = getNewCodes(state, now);
+  const newCodes = resolveNewCodes(config.siteDir, state, config, now);
   const listPages = [
     path.join(config.siteDir, 'lotes', 'index.html'),
     ...walkFiles(categoriesDir, (filePath) => filePath.endsWith('.html')),
