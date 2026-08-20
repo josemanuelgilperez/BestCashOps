@@ -410,6 +410,13 @@ function removeHiddenCards(html, hiddenCodes) {
   });
 }
 
+function normalizeNewBadgeMarkup(html) {
+  return html
+    .replace(/class=\\"lot-code-with-badge\\"/gi, 'class="lot-code-with-badge"')
+    .replace(/class=\\"card-code-row\\"/gi, 'class="card-code-row"')
+    .replace(/class=\\"new-lot-badge\\"/gi, 'class="new-lot-badge"');
+}
+
 function markTableRows(html, newCodes) {
   return html.replace(/<tr\b([^>]*)>([\s\S]*?)<\/tr>/gi, (match, attrs, body) => {
     const code = body.match(/lotes\/([A-Z]{2}\d{4})\.html/i)?.[1]?.toUpperCase();
@@ -419,7 +426,7 @@ function markTableRows(html, newCodes) {
       .replace(/\sdata-pallet-code=["'][^"']*["']/gi, '')
       .replace(/\sdata-new-lot=["'][^"']*["']/gi, '');
     nextAttrs += ` data-pallet-code="${code}" data-new-lot="${isNew ? '1' : '0'}"`;
-    let nextBody = body.replace(/<span class="new-lot-badge">Nuevo<\/span>\s*/gi, '');
+    let nextBody = normalizeNewBadgeMarkup(body).replace(/<span class="new-lot-badge">Nuevo<\/span>\s*/gi, '');
     nextBody = nextBody.replace(
       new RegExp(`(<span class="lot-code-with-badge">\\s*)(<a[^>]+lotes/${code}\\.html[^>]*>\\s*${code}\\s*</a>)(\\s*</span>)`, 'i'),
       '$2',
@@ -435,28 +442,30 @@ function markTableRows(html, newCodes) {
 }
 
 function markCards(html, newCodes) {
-  return html.replace(/<div class="card"([^>]*)>([\s\S]*?)<\/div>\s*(?=<div class="card"|<\/div>\s*<\/div>\s*<script|<\/body>)/gi, (match, attrs, body) => {
-    const code = body.match(/card-code">\s*([A-Z]{2}\d{4})\s*</i)?.[1]?.toUpperCase() ||
-      body.match(/lotes\/([A-Z]{2}\d{4})\.html/i)?.[1]?.toUpperCase();
-    if (!code) return match;
-    const isNew = newCodes.has(code);
-    let nextAttrs = attrs
-      .replace(/\sdata-pallet-code=["'][^"']*["']/gi, '')
-      .replace(/\sdata-new-lot=["'][^"']*["']/gi, '');
-    nextAttrs += ` data-pallet-code="${code}" data-new-lot="${isNew ? '1' : '0'}"`;
-    let nextBody = body.replace(/<span class="new-lot-badge">Nuevo<\/span>\s*/gi, '');
-    nextBody = nextBody.replace(
-      /<div class="card-code-row">\s*(<div class="card-code">\s*[A-Z]{2}\d{4}\s*<\/div>)\s*<\/div>/gi,
-      '$1',
-    );
-    if (isNew) {
-      nextBody = nextBody.replace(
-        /(<div class="card-code">\s*[A-Z]{2}\d{4}\s*<\/div>)/i,
-        '<div class="card-code-row">$1<span class="new-lot-badge">Nuevo</span></div>',
-      );
-    }
-    return `<div class="card"${nextAttrs}>${nextBody}</div>`;
-  });
+  let next = normalizeNewBadgeMarkup(html);
+  next = next.replace(
+    /<div class="card"([^>]*)>\s*(<a href="(?:\.\.\/)?lotes\/([A-Z]{2}\d{4})\.html" class="card-link"><\/a>)/gi,
+    (_match, attrs, link, codeValue) => {
+      const code = codeValue.toUpperCase();
+      const cleanAttrs = attrs
+        .replace(/\sdata-pallet-code=["'][^"']*["']/gi, '')
+        .replace(/\sdata-new-lot=["'][^"']*["']/gi, '');
+      return `<div class="card"${cleanAttrs} data-pallet-code="${code}" data-new-lot="${newCodes.has(code) ? '1' : '0'}">\n    ${link}`;
+    },
+  );
+  next = next.replace(
+    /<div class="card-code-row">\s*(<div class="card-code">\s*([A-Z]{2}\d{4})\s*<\/div>)\s*(?:<span class="new-lot-badge">Nuevo<\/span>\s*)?<\/div>/gi,
+    '$1',
+  );
+  next = next.replace(
+    /(<div class="card-code">\s*([A-Z]{2}\d{4})\s*<\/div>)/gi,
+    (match, codeBlock, codeValue) => (
+      newCodes.has(codeValue.toUpperCase())
+        ? `<div class="card-code-row">${codeBlock}<span class="new-lot-badge">Nuevo</span></div>`
+        : match
+    ),
+  );
+  return next;
 }
 
 function processIndex(siteDir, state, newCodes) {
@@ -565,14 +574,15 @@ function writeAssets(siteDir) {
 .card-code-row {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 12px;
   flex-wrap: wrap;
   vertical-align: middle;
 }
 
 .lot-code-with-badge {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-columns: minmax(74px, 1fr) auto minmax(74px, 1fr);
+  align-items: center;
   width: 100%;
   gap: 0;
 }
@@ -585,7 +595,7 @@ function writeAssets(siteDir) {
 .lot-code-with-badge > .new-lot-badge {
   grid-column: 3;
   justify-self: start;
-  margin-left: 10px;
+  margin-left: 14px;
 }
 
 .new-lot-badge {
@@ -594,18 +604,26 @@ function writeAssets(siteDir) {
   justify-content: center;
   width: fit-content;
   margin: 0;
-  padding: 2px 7px;
+  min-height: 24px;
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 255, 255, .72);
   border-radius: 999px;
-  background: #16a34a;
+  background: linear-gradient(180deg, #22c55e 0%, #119647 100%);
   color: #fff;
-  font-size: 10px;
-  font-weight: 800;
+  box-shadow: 0 5px 12px rgba(17, 150, 71, .28), inset 0 1px 0 rgba(255, 255, 255, .35);
+  font-size: 11px;
+  font-weight: 900;
   line-height: 1.1;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .card .new-lot-badge {
   transform: translateY(1px);
+}
+
+.card-code-row {
+  justify-content: flex-start;
 }
 
 .new-lot-empty {
