@@ -479,6 +479,11 @@ function writeAssets(siteDir) {
   margin: 16px 0;
 }
 
+.new-lot-controls ~ .desktop-only {
+  margin-left: -20px;
+  margin-right: -20px;
+}
+
 .new-filter {
   border: 1px solid var(--border, #e5e7eb);
   border-radius: 8px;
@@ -549,6 +554,13 @@ function writeAssets(siteDir) {
   border-radius: 8px;
   color: var(--muted, #6b7280);
   text-align: center;
+}
+
+@media (max-width: 768px) {
+  .new-lot-controls ~ .desktop-only {
+    margin-left: -12px;
+    margin-right: -12px;
+  }
 }
 `);
 
