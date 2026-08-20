@@ -7,6 +7,7 @@ const path = require('path');
 
 const DEFAULT_NEW_DAYS = 14;
 const DEFAULT_INITIAL_NEW_LIMIT = 95;
+const DEFAULT_NEW_CODES_FILE = path.resolve(__dirname, '..', 'data', 'new_published_pallets.txt');
 const STATE_RELATIVE_PATH = path.join('assets', 'publication-metadata.json');
 const CSS_RELATIVE_PATH = path.join('assets', 'new-lots.css');
 const JS_RELATIVE_PATH = path.join('assets', 'new-lots.js');
@@ -52,6 +53,7 @@ function buildConfig() {
 
   return {
     siteDir: path.resolve(siteDir),
+    newCodesFile: path.resolve(args['new-codes-file'] || process.env.VDL_NEW_CODES_FILE || DEFAULT_NEW_CODES_FILE),
     newDays: Number(args['new-days'] || process.env.VDL_NEW_DAYS || DEFAULT_NEW_DAYS),
     initialNewLimit: Number(
       args['initial-new-limit'] ||
@@ -139,6 +141,8 @@ function extractPalletInfo(filePath, siteDir) {
   if (!code) return null;
 
   const html = readText(filePath);
+  const unitsMatch = html.match(/<div[^>]*class=["'][^"']*title-meta[^"']*["'][^>]*>\s*([0-9.]+)\s+unidades/i);
+  const units = unitsMatch ? Number(unitsMatch[1].replace(/\./g, '')) : 0;
   const title = stripTags(firstMatch(html, /<title>([\s\S]*?)<\/title>/i));
   const titleMain = stripTags(firstMatch(html, /<span[^>]+data-pallet-title[^>]*>([\s\S]*?)<\/span>/i));
   const name = stripTags(firstMatch(html, /<span[^>]+data-pallet-name[^>]*>([\s\S]*?)<\/span>/i));
@@ -155,6 +159,7 @@ function extractPalletInfo(filePath, siteDir) {
     title: titleMain || title || code,
     name: name || title.replace(new RegExp(`^${code}\\s*[–-]\\s*`, 'i'), '') || code,
     categorySlug,
+    units,
     signature,
   };
 }
@@ -303,9 +308,37 @@ function getPublicListCodes(siteDir) {
   return codes;
 }
 
+function getExplicitNewCodes(config) {
+  if (!config.newCodesFile || !fs.existsSync(config.newCodesFile)) return [];
+
+  const seen = new Set();
+  const codes = [];
+  const matches = readText(config.newCodesFile).matchAll(/\b[A-Z]{2}\d{4}\b/gi);
+
+  for (const match of matches) {
+    const code = match[0].toUpperCase();
+    if (seen.has(code)) continue;
+    seen.add(code);
+    codes.push(code);
+  }
+
+  return codes;
+}
+
 function resolveNewCodes(siteDir, state, config, now = new Date()) {
-  const minimumNewCount = Math.max(0, Number(config.minimumNewCount || 0));
+  const explicitCodes = getExplicitNewCodes(config);
   const publicCodes = getPublicListCodes(siteDir);
+
+  if (explicitCodes.length) {
+    const publicSet = new Set(publicCodes);
+    const missing = explicitCodes.filter((code) => !publicSet.has(code));
+    if (missing.length) {
+      console.warn(`Warning: ${missing.length} explicit new pallets are not in public listing: ${missing.join(', ')}`);
+    }
+    return new Set(explicitCodes.filter((code) => publicSet.has(code)));
+  }
+
+  const minimumNewCount = Math.max(0, Number(config.minimumNewCount || 0));
 
   if (minimumNewCount > 0 && publicCodes.length) {
     return new Set(publicCodes.sort(comparePalletCodesDesc).slice(0, minimumNewCount));
@@ -360,6 +393,21 @@ function ensureListControls(html, newCount) {
   }
 
   return html.replace(/<\/header>\s*/i, `</header>\n${controls}\n`);
+}
+
+function removeHiddenTableRows(html, hiddenCodes) {
+  return html.replace(/<tr\b[^>]*data-pallet-code=["']([A-Z]{2}\d{4})["'][^>]*>[\s\S]*?<\/tr>/gi, (match, code) => (
+    hiddenCodes.has(code.toUpperCase()) || />\s*0\/0\s*</.test(match) ? '' : match
+  ));
+}
+
+function removeHiddenCards(html, hiddenCodes) {
+  return html.replace(/<div class="card"([^>]*)>([\s\S]*?)<\/div>\s*(?=<div class="card"|<\/div>\s*<\/div>\s*<script|<\/body>)/gi, (match, attrs, body) => {
+    const code = attrs.match(/data-pallet-code=["']([A-Z]{2}\d{4})["']/i)?.[1]?.toUpperCase() ||
+      body.match(/card-code">\s*([A-Z]{2}\d{4})\s*</i)?.[1]?.toUpperCase() ||
+      body.match(/lotes\/([A-Z]{2}\d{4})\.html/i)?.[1]?.toUpperCase();
+    return (code && hiddenCodes.has(code)) || />\s*0\s+unidades\s*</i.test(match) ? '' : match;
+  });
 }
 
 function markTableRows(html, newCodes) {
@@ -422,15 +470,17 @@ function processIndex(siteDir, state, newCodes) {
   return true;
 }
 
-function processListPage(filePath, siteDir, newCodes) {
+function processListPage(filePath, siteDir, newCodes, hiddenCodes) {
   const prefix = relativeAssetPrefix(filePath, siteDir);
   const original = readText(filePath);
   const pageCodes = new Set(
     [...original.matchAll(/(?:lotes\/|\.\/)?([A-Z]{2}\d{4})\.html/gi)]
       .map((match) => match[1].toUpperCase()),
   );
-  const newCount = [...pageCodes].filter((code) => newCodes.has(code)).length;
+  const newCount = [...pageCodes].filter((code) => newCodes.has(code) && !hiddenCodes.has(code)).length;
   let updated = original;
+  updated = removeHiddenTableRows(updated, hiddenCodes);
+  updated = removeHiddenCards(updated, hiddenCodes);
   updated = ensureCssLink(updated, prefix);
   updated = ensureListControls(updated, newCount);
   updated = markTableRows(updated, newCodes);
@@ -440,6 +490,17 @@ function processListPage(filePath, siteDir, newCodes) {
   if (updated === original) return false;
   writeText(filePath, updated);
   return true;
+}
+
+function deleteHiddenLotPages(lotsDir, hiddenCodes) {
+  const deleted = [];
+  for (const code of hiddenCodes) {
+    const filePath = path.join(lotsDir, `${code}.html`);
+    if (!fs.existsSync(filePath)) continue;
+    fs.unlinkSync(filePath);
+    deleted.push(path.relative(path.dirname(lotsDir), filePath).replaceAll(path.sep, '/'));
+  }
+  return deleted;
 }
 
 function writeAssets(siteDir) {
@@ -627,9 +688,13 @@ function main() {
   const pallets = walkFiles(lotsDir, (filePath) => filePath.endsWith('.html'))
     .map((filePath) => extractPalletInfo(filePath, config.siteDir))
     .filter(Boolean);
+  const visiblePallets = pallets.filter((pallet) => Number(pallet.units || 0) > 0);
+  const hiddenCodes = new Set(pallets
+    .filter((pallet) => Number(pallet.units || 0) <= 0)
+    .map((pallet) => pallet.code));
 
   const now = new Date();
-  const state = updateState(config.siteDir, pallets, config, now);
+  const state = updateState(config.siteDir, visiblePallets, config, now);
   const newCodes = resolveNewCodes(config.siteDir, state, config, now);
   const listPages = [
     path.join(config.siteDir, 'lotes', 'index.html'),
@@ -642,16 +707,21 @@ function main() {
   if (processIndex(config.siteDir, state, newCodes)) changed.push('index.html');
 
   for (const pagePath of listPages) {
-    if (processListPage(pagePath, config.siteDir, newCodes)) {
+    if (processListPage(pagePath, config.siteDir, newCodes, hiddenCodes)) {
       changed.push(path.relative(config.siteDir, pagePath).replaceAll(path.sep, '/'));
     }
   }
 
+  const deleted = deleteHiddenLotPages(lotsDir, hiddenCodes);
+
   console.log(`VentaDeLotes enhanced in ${config.siteDir}`);
-  console.log(`Pallets indexed: ${pallets.length}`);
+  console.log(`Pallets indexed: ${visiblePallets.length}`);
+  console.log(`Empty pallets hidden: ${hiddenCodes.size}`);
   console.log(`New pallets: ${newCodes.size}`);
   console.log(`HTML pages changed: ${changed.length}`);
   changed.forEach((file) => console.log(`- ${file}`));
+  console.log(`Empty lot pages deleted: ${deleted.length}`);
+  deleted.forEach((file) => console.log(`- ${file}`));
 }
 
 if (require.main === module) {
@@ -663,5 +733,7 @@ module.exports = {
   getNewCodes,
   processIndex,
   processListPage,
+  removeHiddenCards,
+  removeHiddenTableRows,
   updateState,
 };
