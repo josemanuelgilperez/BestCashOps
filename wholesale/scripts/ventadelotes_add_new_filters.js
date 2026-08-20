@@ -504,6 +504,24 @@ function writeAssets(siteDir) {
   vertical-align: middle;
 }
 
+.lot-code-with-badge {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  width: 100%;
+  gap: 0;
+}
+
+.lot-code-with-badge > a {
+  grid-column: 2;
+  justify-self: center;
+}
+
+.lot-code-with-badge > .new-lot-badge {
+  grid-column: 3;
+  justify-self: start;
+  margin-left: 10px;
+}
+
 .new-lot-badge {
   display: inline-flex;
   align-items: center;
@@ -514,7 +532,7 @@ function writeAssets(siteDir) {
   border-radius: 999px;
   background: #16a34a;
   color: #fff;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
   line-height: 1.1;
   text-transform: uppercase;
