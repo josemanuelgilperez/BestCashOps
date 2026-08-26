@@ -45,6 +45,7 @@ venv/
 # ======================================
 *.tmp
 *.swp
+base/amazon_import/procesados/
 
 # ======================================
 # TOOLS DATA / OUTPUTS
