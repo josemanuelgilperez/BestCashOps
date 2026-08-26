@@ -9,10 +9,11 @@ set -euo pipefail
 # Opcionales:
 #   --host 212.227.90.202
 #   --user root
+#   --remote-base /root/BestCashOps/wholesale/data
 
 HOST="212.227.90.202"
 USER_NAME="root"
-REMOTE_BASE="/opt/bestcash/apps/BestCashBoxes/data"
+REMOTE_BASE="/root/BestCashOps/wholesale/data"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 LOCAL_NAMES="${PROJECT_ROOT}/tools/data/names.csv"
@@ -34,6 +35,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --local-xlsx-dir)
       LOCAL_XLSX_DIR="$2"
+      shift 2
+      ;;
+    --remote-base)
+      REMOTE_BASE="$2"
       shift 2
       ;;
     *)
@@ -60,8 +65,8 @@ if ! ls "$LOCAL_XLSX_DIR"/*.xlsx >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "Creando carpetas remotas..."
-ssh "${USER_NAME}@${HOST}" "mkdir -p '${REMOTE_BASE}/new_box_files'"
+echo "Preparando carpetas remotas limpias..."
+ssh "${USER_NAME}@${HOST}" "mkdir -p '${REMOTE_BASE}/new_box_files' '${REMOTE_BASE}/processed' && rm -f '${REMOTE_BASE}/new_box_files'/*.xlsx '${REMOTE_BASE}/processed'/*.xlsx"
 
 echo "Subiendo names.csv..."
 scp "$LOCAL_NAMES" "${USER_NAME}@${HOST}:${REMOTE_BASE}/names.csv"

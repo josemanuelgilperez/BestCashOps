@@ -18,7 +18,7 @@ destination_db_config = {
     'user': os.getenv('DB_USER', 'bestcash_app'),
     'password': os.getenv('DB_PASSWORD', 'Bc_TPV_2026!kjDERZtm#82'),
     'host': os.getenv('DB_HOST', '82.223.203.117'),
-    'database': os.getenv('DB_NAME', 'bestcash_rds')
+    'database': os.getenv('DB_NAME', 'bestcash')
 }
 
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
@@ -135,6 +135,11 @@ def insert_item(cursor, connection, code, reference_id, shop_id, price, ok_onlin
     connection.commit()
 
 def main():
+    if len(sys.argv) < 2:
+        print("Uso: python3 tpv/insert_new_items_shops.py /ruta/al/csv")
+        print("El CSV debe incluir columnas: asin, item, precio, tienda y opcionalmente ok_online.")
+        sys.exit(1)
+
     csv_entrada = sys.argv[1]
     scraping_csv = 'amazon_info.csv'
     asin_procesados = set()

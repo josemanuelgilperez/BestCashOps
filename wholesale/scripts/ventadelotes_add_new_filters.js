@@ -353,7 +353,7 @@ function relativeAssetPrefix(filePath, siteDir) {
 }
 
 function ensureCssLink(html, prefix) {
-  const href = `${prefix}assets/new-lots.css`;
+  const href = `${prefix}assets/new-lots.css?v=20260825`;
   if (html.includes(href)) return html;
   return html.replace(/<\/head>/i, `  <link rel="stylesheet" href="${href}">\n</head>`);
 }
@@ -518,15 +518,20 @@ function writeAssets(siteDir) {
   ensureDir(path.dirname(cssPath));
 
   writeText(cssPath, `.new-lots-home {
-  margin-top: 22px;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin: 22px 0 34px;
+  clear: both;
 }
 
 .new-lots-home-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  max-width: min(100%, 520px);
   min-height: 44px;
-  padding: 10px 18px;
+  padding: 14px 24px;
   border-radius: 8px;
   background: #fff;
   color: #111827;
@@ -542,16 +547,24 @@ function writeAssets(siteDir) {
   text-decoration: none;
 }
 
+@media (max-width: 640px) {
+  .new-lots-home {
+    margin: 18px 0 28px;
+  }
+
+  .new-lots-home-button {
+    width: 100%;
+    max-width: 360px;
+    padding: 13px 18px;
+    font-size: 18px;
+  }
+}
+
 .new-lot-controls {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin: 16px 0;
-}
-
-.new-lot-controls ~ .desktop-only {
-  margin-left: -20px;
-  margin-right: -20px;
 }
 
 .new-filter {
@@ -580,22 +593,19 @@ function writeAssets(siteDir) {
 }
 
 .lot-code-with-badge {
-  display: grid;
-  grid-template-columns: minmax(74px, 1fr) auto minmax(74px, 1fr);
+  display: inline-flex;
   align-items: center;
-  width: 100%;
-  gap: 0;
+  justify-content: center;
+  gap: 12px;
+  width: auto;
 }
 
 .lot-code-with-badge > a {
-  grid-column: 2;
-  justify-self: center;
+  flex: 0 0 auto;
 }
 
 .lot-code-with-badge > .new-lot-badge {
-  grid-column: 3;
-  justify-self: start;
-  margin-left: 14px;
+  flex: 0 0 auto;
 }
 
 .new-lot-badge {
@@ -635,12 +645,6 @@ function writeAssets(siteDir) {
   text-align: center;
 }
 
-@media (max-width: 768px) {
-  .new-lot-controls ~ .desktop-only {
-    margin-left: -12px;
-    margin-right: -12px;
-  }
-}
 `);
 
   writeText(jsPath, `(function () {

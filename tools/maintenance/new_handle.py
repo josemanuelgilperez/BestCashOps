@@ -12,7 +12,7 @@ db_config = {
     'user': os.getenv('DB_USER', 'bestcash_app'),
     'password': os.getenv('DB_PASSWORD', 'Bc_TPV_2026!kjDERZtm#82'),
     'host': os.getenv('DB_HOST', '82.223.203.117'),
-    'database': os.getenv('DB_NAME', 'bestcash_rds')
+    'database': os.getenv('DB_NAME', 'bestcash')
 }
 
 def generate_shopify_handle(title, asin):

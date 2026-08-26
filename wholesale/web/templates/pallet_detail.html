@@ -13,7 +13,7 @@
   <div class="header-left">
     <div>
       <div class="title-main">
-        {{ pallet_code }} – {{ pallet_name }}
+        <span data-pallet-title>{{ pallet_code }} – <span data-pallet-name>{{ pallet_name }}</span></span>
       </div>
 
       <div class="title-meta">
@@ -32,6 +32,12 @@
 
       <div class="status status-{{ status|lower }}">
         {{ status }}
+      </div>
+
+      <div class="pallet-admin-panel" data-pallet-admin-panel data-pallet-code="{{ pallet_code }}" hidden>
+        <input type="text" data-pallet-name-input value="{{ pallet_name }}" maxlength="120" aria-label="Nombre del pallet">
+        <button type="button" data-pallet-rename-button>Guardar nombre</button>
+        <span data-pallet-admin-status class="pallet-admin-status"></span>
       </div>
     </div>
   </div>
@@ -99,6 +105,7 @@
 </div>
 
 <script src="../assets/pallet-modal.js"></script>
+<script src="../assets/pallet-admin.js"></script>
 
 </body>
 </html>

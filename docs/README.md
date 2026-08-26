@@ -51,6 +51,7 @@ Los scripts del proyecto deben ejecutarse con el mismo entorno: `python3 ...` tr
 - **Mayorista (lotes):**
   - `wholesale/scripts/run_pipeline.py`
   - `wholesale/scripts/update_status_and_deploy.py`
+  - Runbook operativo: [`WHOLESALE_PUBLISH_RUNBOOK.md`](WHOLESALE_PUBLISH_RUNBOOK.md)
 
 ## Comandos de referencia
 
@@ -59,6 +60,16 @@ Los scripts del proyecto deben ejecutarse con el mismo entorno: `python3 ...` tr
 ```bash
 python3 wholesale/scripts/run_pipeline.py
 ```
+
+### Publicar mayorista con control de calidad
+
+Para nuevas tandas de pallets, usar preferentemente el runbook:
+
+```bash
+python3 tools/wholesale/publish_wholesale.py --new-pallets
+```
+
+Ver [`WHOLESALE_PUBLISH_RUNBOOK.md`](WHOLESALE_PUBLISH_RUNBOOK.md).
 
 ### Actualizar estados y publicar
 

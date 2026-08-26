@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Edita wholesale/data/update_status.csv y ejecuta update_status_and_deploy.py
+# Edita wholesale/data/update_status.csv y ejecuta update_status_and_deploy.py.
+# Formato CSV:
+#   code,status,reservado_para,reservado_por,fecha_reserva,fecha_venta
 #
 # La raíz del repo se deduce de ESTE fichero (resolviendo symlinks), así el mismo
 # script vale en Mac (p. ej. ~/Documents/GitHub/BestCashOps) y en VPS (~/BestCashOps).

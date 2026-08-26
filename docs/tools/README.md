@@ -21,6 +21,7 @@ Utilidades operativas de `BestCashOps`.
 
 - Flujo mayorista oficial: `wholesale/`.
 - Flujo retail de importacion/sync: `base/amazon_import/` + `base/bestcash_modules/`.
+- Importacion Amazon Vendor: `docs/runbooks/AMAZON_VENDOR_IMPORT.md`.
 
 ## Proceso: vendidos Wallapop -> Shopify
 

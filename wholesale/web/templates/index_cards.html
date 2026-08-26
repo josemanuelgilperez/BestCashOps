@@ -33,6 +33,11 @@
         <span>{{ pallet.total_units or 0 }} unidades</span>
       </div>
     </div>
+    <a
+      class="management-card-action"
+      href="../lotes/{{ pallet.code }}.html?admin=1"
+      title="Renombrar pallet {{ pallet.code }}"
+    >Renombrar</a>
   </div>
 {% endfor %}
 </div>

@@ -130,11 +130,19 @@ header h1 {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
 }
 
+.summary-table-wrap {
+  max-height: calc(100vh - 140px);
+}
+
 table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
   min-width: 720px;
+}
+
+.summary-table-wrap table {
+  min-width: 1180px;
 }
 
 thead th {
@@ -204,6 +212,32 @@ th.sorted-desc::after {
   margin-top: 14px;
   color: var(--muted);
   font-size: 13px;
+}
+
+.management-col {
+  display: none;
+}
+
+body.is-management-app .management-col {
+  display: table-cell;
+}
+
+.management-link,
+.management-card-action {
+  border: 1px solid var(--brand);
+  border-radius: 6px;
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 7px 9px;
+  white-space: nowrap;
+}
+
+.management-link:hover,
+.management-card-action:hover {
+  background: #e0f2fe;
+  text-decoration: none;
 }
 
 /* =============================
@@ -316,6 +350,17 @@ th.sorted-desc::after {
   color: var(--muted);
 }
 
+.management-card-action {
+  display: none;
+}
+
+body.is-management-app .management-card-action {
+  position: relative;
+  z-index: 20;
+  display: inline-flex;
+  margin-top: 10px;
+}
+
 /* =============================
    PÁGINA DETALLE PALLET
    ============================= */
@@ -375,6 +420,50 @@ th.sorted-desc::after {
 }
 
 .status-vendido {
+  color: var(--bad);
+}
+
+.pallet-admin-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.pallet-admin-panel[hidden] {
+  display: none;
+}
+
+.pallet-admin-panel input {
+  width: min(360px, 100%);
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.pallet-admin-panel button {
+  padding: 8px 12px;
+  border: 1px solid var(--brand);
+  border-radius: 6px;
+  background: var(--brand);
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.pallet-admin-panel button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.pallet-admin-status {
+  font-size: 13px;
+  color: var(--ok);
+}
+
+.pallet-admin-status.is-error {
   color: var(--bad);
 }
 
@@ -536,4 +625,3 @@ th.sorted-desc::after {
     font-size: 10px;
   }
 }
-

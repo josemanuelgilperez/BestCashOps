@@ -243,7 +243,11 @@ def cargar_boxes_resumen():
             units AS total_units,
             pvp_total,
             cost AS coste_total,
-            status
+            status,
+            reservado_para,
+            reservado_por,
+            fecha_reserva,
+            fecha_venta
         FROM boxes
         WHERE status IN ('Disponible', 'Reservado', 'Vendido')
         ORDER BY code

@@ -85,6 +85,7 @@ for _p in (REPO_ROOT, BASE_DIR):
         sys.path.insert(0, _p)
 
 from db import get_connection
+from pipeline.attributes import extract_size_color, preload_delivery_descriptions
 load_dotenv()
 
 # ==============================
@@ -250,6 +251,15 @@ def process_file(filepath, mapping):
     overstock = 0
     devoluciones = 0
     filas_insertadas = 0
+    asins_excel = []
+
+    for _, row in df.iterrows():
+        asin = _cell_str(row.get(cols["asin"]))
+        if asin:
+            asins_excel.append(asin)
+
+    delivery_descriptions = preload_delivery_descriptions(cursor, asins_excel)
+    variants_found = 0
 
     for _, row in df.iterrows():
 
@@ -275,11 +285,15 @@ def process_file(filepath, mapping):
             pvp = float(r[0]) if r and r[0] else 0.0
             price_cache[asin] = pvp
 
+        size, color = extract_size_color(asin, delivery_descriptions.get(asin.upper(), ""))
+        if size and color:
+            variants_found += 1
+
         # INSERT
         cursor.execute("""
-            INSERT INTO box_items (box_code, asin, quantity, pvp_ud)
-            VALUES (%s, %s, %s, %s)
-        """, (code, asin, units, pvp))
+            INSERT INTO box_items (box_code, asin, quantity, size, color, pvp_ud)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (code, asin, units, size, color, pvp))
 
         filas_insertadas += 1
         total_units += units
@@ -312,7 +326,10 @@ def process_file(filepath, mapping):
             f"(revisa ASIN vacíos o unidades ≤ 0 en el Excel)."
         )
     else:
-        print(f"✅ {code} procesado | {filas_insertadas} líneas en box_items")
+        print(
+            f"✅ {code} procesado | {filas_insertadas} líneas en box_items | "
+            f"{variants_found} con talla/color"
+        )
 
 
 def main():

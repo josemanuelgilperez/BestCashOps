@@ -1,4 +1,4 @@
-code,status
-MP1001,Disponible
-MP1002,Reservado
-MP1003,Vendido
+code,status,reservado_para,reservado_por,fecha_reserva,fecha_venta
+MP1001,Disponible,,,,
+MP1002,Reservado,Cliente ejemplo,Jose Manuel,06/08/2026,
+MP1003,Vendido,Cliente ejemplo,Jose Manuel,,06/08/2026

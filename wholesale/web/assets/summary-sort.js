@@ -2,7 +2,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const table = document.getElementById("summaryTable");
   if (!table) return;
 
-  // Buscador: filtra filas por código, nombre o estado
+  // Buscador: filtra filas por cualquier texto visible del resumen
   const searchInput = document.getElementById("summarySearch");
   if (searchInput) {
     searchInput.addEventListener("input", function () {
@@ -11,11 +11,8 @@ document.addEventListener("DOMContentLoaded", function () {
       const rows = tbody.querySelectorAll("tr");
 
       rows.forEach((row) => {
-        const code = (row.cells[0]?.innerText || "").toLowerCase();
-        const name = (row.cells[1]?.innerText || "").toLowerCase();
-        const status = (row.cells[6]?.innerText || "").toLowerCase();
-
-        const match = !term || code.includes(term) || name.includes(term) || status.includes(term);
+        const text = (row.innerText || "").toLowerCase();
+        const match = !term || text.includes(term);
         row.style.display = match ? "" : "none";
       });
     });
@@ -26,7 +23,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
   headers.forEach((header) => {
     header.addEventListener("click", () => {
-      const column = header.dataset.column;
+      const column = header.dataset.column || "";
+      const columnIndex = Array.from(header.parentElement.children).indexOf(header);
       const tbody = table.querySelector("tbody");
       const rows = Array.from(tbody.querySelectorAll("tr"));
       const currentSort = header.dataset.sort || "none";
@@ -38,14 +36,13 @@ document.addEventListener("DOMContentLoaded", function () {
       header.classList.add(ascending ? "sorted-asc" : "sorted-desc");
 
       rows.sort((a, b) => {
-        const getText = (row, col) => {
-          if (col === "code") return row.cells[0].innerText.trim().toUpperCase();
-          if (col === "name") return row.cells[1].innerText.trim().toLowerCase();
-          if (col === "status") return row.cells[6].innerText.trim().toLowerCase();
-          return "";
+        const getText = (row) => {
+          const text = (row.cells[columnIndex]?.innerText || "").trim();
+          if (column === "code") return text.toUpperCase();
+          return text.toLowerCase();
         };
-        const textA = getText(a, column);
-        const textB = getText(b, column);
+        const textA = getText(a);
+        const textB = getText(b);
         return ascending ? textA.localeCompare(textB, "es") : textB.localeCompare(textA, "es");
       });
 
@@ -54,4 +51,3 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 });
-

@@ -14,50 +14,60 @@
     </div>
   </header>
 
-  <table id="summaryTable">
-    <thead>
-      <tr>
-        <th class="sortable" data-column="code">Código</th>
-        <th class="sortable" data-column="name">Nombre</th>
-        <th>Unidades</th>
-        <th>PVP Total</th>
-        <th>Coste Total</th>
-        <th>% Coste / PVP</th>
-        <th class="sortable" data-column="status">Estado</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for box in boxes %}
-      <tr>
-        <td><a href="lotes/{{ box.code }}.html" target="_blank">{{ box.code }}</a></td>
-        <td>{{ box.name }}</td>
-        <td>{{ box.total_units }}</td>
-        <td>{{ box.pvp_total }}</td>
-        <td>{{ box.coste_total }}</td>
-        <td>
-          {% if box.pvp_total and box.pvp_total > 0 %}
-            {{ ((box.coste_total / box.pvp_total) * 100) | round(1) }}%
-          {% else %}
-            N/A
-          {% endif %}
-        </td>
-        <td>
-          {% if box.status == 'Disponible' %}
-            <span class="badge badge--ok"><span class="dot"></span>Disponible</span>
-          {% elif box.status == 'Reservado' %}
-            <span class="badge badge--warn"><span class="dot"></span>Reservado</span>
-          {% elif box.status == 'Vendido' %}
-            <span class="badge badge--bad"><span class="dot"></span>Vendido</span>
-          {% else %}
-            {{ box.status }}
-          {% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="table-wrap summary-table-wrap">
+    <table id="summaryTable">
+      <thead>
+        <tr>
+          <th class="sortable" data-column="code">Código</th>
+          <th class="sortable" data-column="name">Nombre</th>
+          <th>Unidades</th>
+          <th>PVP Total</th>
+          <th>Coste Total</th>
+          <th>% Coste / PVP</th>
+          <th class="sortable" data-column="status">Estado</th>
+          <th class="sortable" data-column="reservado_para">Reservado para</th>
+          <th class="sortable" data-column="reservado_por">Reservado por</th>
+          <th class="sortable" data-column="fecha_reserva">Fecha reserva</th>
+          <th class="sortable" data-column="fecha_venta">Fecha venta</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for box in boxes %}
+        <tr>
+          <td><a href="lotes/{{ box.code }}.html" target="_blank">{{ box.code }}</a></td>
+          <td>{{ box.name }}</td>
+          <td>{{ box.total_units }}</td>
+          <td>{{ box.pvp_total }}</td>
+          <td>{{ box.coste_total }}</td>
+          <td>
+            {% if box.pvp_total and box.pvp_total > 0 %}
+              {{ ((box.coste_total / box.pvp_total) * 100) | round(1) }}%
+            {% else %}
+              N/A
+            {% endif %}
+          </td>
+          <td>
+            {% if box.status == 'Disponible' %}
+              <span class="badge badge--ok"><span class="dot"></span>Disponible</span>
+            {% elif box.status == 'Reservado' %}
+              <span class="badge badge--warn"><span class="dot"></span>Reservado</span>
+            {% elif box.status == 'Vendido' %}
+              <span class="badge badge--bad"><span class="dot"></span>Vendido</span>
+            {% else %}
+              {{ box.status }}
+            {% endif %}
+          </td>
+          <td>{{ box.reservado_para or "" }}</td>
+          <td>{{ box.reservado_por or "" }}</td>
+          <td>{{ box.fecha_reserva or "" }}</td>
+          <td>{{ box.fecha_venta or "" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 
-  <script src="assets/summary-sort.js"></script>
+  <script src="assets/summary-sort.js?v=20260807"></script>
 
 </body>
 </html>

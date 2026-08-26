@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import os
+from pathlib import Path
 import subprocess
 import sys
 
@@ -40,6 +41,25 @@ def scope_args(args):
     return out
 
 
+def write_new_codes_file(args):
+    if not (args.new_pallets or args.boxes or args.from_asins):
+        return
+    sys.path.insert(0, REPO_ROOT)
+    from wholesale.pipeline.finance import resolve_scope_codes
+
+    codes = resolve_scope_codes(
+        boxes=args.boxes,
+        from_asins=args.from_asins,
+        new_pallets=args.new_pallets,
+    )
+    if not codes:
+        return
+    path = Path(REPO_ROOT) / "wholesale" / "data" / "new_published_pallets.txt"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(codes) + "\n", encoding="utf-8")
+    print(f"\n▶ nuevos publicados: {len(codes)} codigos en {path.relative_to(REPO_ROOT)}", flush=True)
+
+
 def main():
     args = parse_args()
     py = sys.executable
@@ -64,10 +84,12 @@ def main():
     )
     run([py, "wholesale/web/build_html.py"], skip=args.skip_build)
     run([py, "wholesale/web/categories.py"], skip=args.skip_build)
+    if not args.skip_build:
+        write_new_codes_file(args)
     run(
         [
-            "node",
-            "wholesale/scripts/ventadelotes_add_new_filters.js",
+            py,
+            "tools/wholesale/mark_new_lots.py",
             "--site",
             "wholesale/web/output",
         ],

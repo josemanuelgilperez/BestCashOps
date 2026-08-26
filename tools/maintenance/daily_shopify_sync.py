@@ -47,7 +47,7 @@ def get_db_connection():
         host=os.getenv("DB_HOST", "82.223.203.117"),
         user=os.getenv("DB_USER", "bestcash_app"),
         password=os.getenv("DB_PASSWORD", "Bc_TPV_2026!kjDERZtm#82"),
-        database=os.getenv("DB_NAME", "bestcash_rds"),
+        database=os.getenv("DB_NAME", "bestcash"),
         autocommit=True
     )
 

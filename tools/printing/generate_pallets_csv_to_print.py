@@ -2,6 +2,9 @@ import os
 import csv
 import argparse
 import mysql.connector
+from dotenv import load_dotenv, find_dotenv
+
+load_dotenv(find_dotenv())
 
 # ==============================
 # CONFIGURACIÓN
@@ -10,8 +13,10 @@ DB_CONFIG = {
     'user': os.getenv('DB_USER', 'bestcash_app'),
     'password': os.getenv('DB_PASSWORD', 'Bc_TPV_2026!kjDERZtm#82'),
     'host': os.getenv('DB_HOST', '82.223.203.117'),
-    'database': os.getenv('DB_NAME', 'bestcash_rds')
+    'database': os.getenv('DB_NAME', 'bestcash')
 }
+if os.getenv('DB_PORT'):
+    DB_CONFIG['port'] = int(os.getenv('DB_PORT'))
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_INPUT_TXT = os.path.join(BASE_DIR, "pallets.txt")
@@ -68,7 +73,22 @@ def generar_csv(input_txt, output_file):
     ORDER BY ue.box_code ASC, ue.asin ASC;
     """
 
-    conn = mysql.connector.connect(**DB_CONFIG)
+    try:
+        conn = mysql.connector.connect(**DB_CONFIG)
+    except mysql.connector.Error as exc:
+        host = DB_CONFIG.get("host")
+        port = DB_CONFIG.get("port", 3306)
+        raise SystemExit(
+            "No se pudo conectar a MySQL "
+            f"({host}:{port}, base {DB_CONFIG.get('database')}).\n"
+            f"Detalle MySQL: {exc}\n"
+            "Ejecutalo en el servidor operativo con su venv, o define "
+            "DB_HOST/DB_PORT apuntando a un tunel MySQL accesible desde "
+            "este equipo.\n"
+            "Ejemplo verificado: ssh root@212.227.90.202 "
+            "\"cd /root/BestCashOps && venv/bin/python "
+            "tools/printing/generate_pallets_csv_to_print.py\""
+        ) from exc
     cursor = conn.cursor()
     try:
         cursor.execute(QUERY, pallets)

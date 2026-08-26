@@ -53,5 +53,14 @@ tools/data/**/*.csv
 tools/data/**/*.txt
 !tools/data/.gitkeep
 tools/printing/*.pdf
-tools/printing/pallets_asin_precios_amazon.csvtools/data/processed/
+tools/printing/pallets_asin_precios_amazon.csv
+tools/data/processed/
 *.xlsx
+# Informes y artefactos generados localmente
+outputs/
+bestcash_pallets_html_*.zip
+tools/data/**/*.tsv
+tools/data/**/*.json
+tools/data/**/*.ndjson
+tools/data/**/*.png
+tools/data/**/*.md

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Recepcion {{ pallet.box_code }}</title>
+  <link rel="stylesheet" href="/assets/reception.css">
+</head>
+<body data-reception-page data-token="{{ client.token }}">
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="heading">
+        <div>
+          <h1>Recepcion {{ pallet.box_code }}</h1>
+          <div class="meta">{{ units|length }} unidades · {{ pallet.name or "Pallet" }}</div>
+        </div>
+        <div class="progress-text" data-progress-text>0 de {{ units|length }} unidades recibidas</div>
+      </div>
+      <div class="progress" aria-hidden="true">
+        <div class="progress-fill" data-progress-fill></div>
+      </div>
+      <div class="controls">
+        <input class="search" type="search" data-search placeholder="Buscar ASIN o titulo">
+        <div class="tabs" aria-label="Filtro">
+          <button class="tab is-active" type="button" data-filter="pending">Pendientes</button>
+          <button class="tab" type="button" data-filter="done">Recibidos</button>
+          <button class="tab" type="button" data-filter="all">Todos</button>
+        </div>
+      </div>
+      <div class="meta">
+        <a href="/recepcion/{{ client.token }}/">Volver al listado</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="grid" data-grid>
+      {% for unit in units %}
+        <article
+          class="item {% if unit.status == 'received' %}is-done{% elif unit.status == 'missing' %}is-missing{% elif unit.status == 'damaged' %}is-damaged{% endif %}"
+          role="button"
+          tabindex="0"
+          aria-pressed="{{ 'true' if unit.status != 'pending' else 'false' }}"
+          data-unit-id="{{ unit.id }}"
+          data-status="{{ unit.status }}"
+          data-search-text="{{ (unit.asin ~ ' ' ~ unit.title)|lower }}"
+        >
+          <div class="photo">
+            {% if unit.image_url %}
+              <img src="{{ unit.image_url }}" alt="">
+            {% else %}
+              <span class="no-image">Sin imagen</span>
+            {% endif %}
+          </div>
+          <div class="body">
+            <div class="asin">{{ unit.asin }}</div>
+            <div class="title" title="{{ unit.title }}">{{ unit.title }}</div>
+            <div class="unit">Unidad {{ unit.unit_index }}/{{ unit.unit_total }}</div>
+          </div>
+        </article>
+      {% endfor %}
+    </section>
+    <div class="empty" data-empty>No hay productos para este filtro.</div>
+  </main>
+
+  <script src="/assets/reception.js"></script>
+</body>
+</html>

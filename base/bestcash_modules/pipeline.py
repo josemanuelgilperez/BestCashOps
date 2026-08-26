@@ -16,6 +16,7 @@ from .utils import (
     construir_texto_dimensiones_peso,
     normalize_payload_dict,
 )
+from .wallapop import build_wallapop_description, build_wallapop_title
 from .attributes import extraer_atributos
 from .scraping import intentar_scraping_con_dominios
 from .images import download_and_upload_images
@@ -126,8 +127,7 @@ def run_pipeline(asin=None, limit=None, from_csv=None, from_txt=None, skip_exist
 
                 titulo_base = sanitize_text(product.get("name")) if product else itemdesc
                 if not titulo_base:
-                    logging.warning("ASIN %s sin titulo base. Se omite.", current_asin)
-                    return
+                    titulo_base = f"Producto {current_asin}"
 
                 imagenes_urls = []
                 caracteristicas_raw = []
@@ -199,7 +199,15 @@ def run_pipeline(asin=None, limit=None, from_csv=None, from_txt=None, skip_exist
                         )
                     else:
                         descripcion = titulo
-                descripcion += f"\nRef. BestCash {current_asin}"
+                descripcion = build_wallapop_description(
+                    asin=current_asin,
+                    title=titulo,
+                    description=descripcion,
+                    features=caracteristicas_raw or caracteristicas_text,
+                    brand=marca,
+                    size=atributos.get("talla"),
+                    color=atributos.get("color"),
+                )
 
                 descripcion_tecnica = (
                     contenido_ia.get("descripcion_tecnica")
@@ -224,7 +232,20 @@ def run_pipeline(asin=None, limit=None, from_csv=None, from_txt=None, skip_exist
                 seo_description = traducir_a_espanol(seo_description or descripcion[:320])
 
                 titulo = (titulo or titulo_base)[:120]
-                titulo_breve = (titulo_breve or titulo)[:120]
+                titulo_breve = build_wallapop_title(
+                    titulo_breve or titulo,
+                    fallback_title=titulo_base,
+                    asin=current_asin,
+                )
+                descripcion = build_wallapop_description(
+                    asin=current_asin,
+                    title=titulo,
+                    description=descripcion,
+                    features=None,
+                    brand=marca,
+                    size=atributos.get("talla"),
+                    color=atributos.get("color"),
+                )
                 seo_title = (seo_title or titulo)[:120]
                 seo_description = (seo_description or descripcion[:320])[:320]
 

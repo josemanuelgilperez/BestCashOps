@@ -2,11 +2,13 @@ import os
 import re
 import json
 import unicodedata
+import argparse
 import requests
 import mysql.connector
 from urllib.request import urlopen
 from urllib.parse import quote_plus
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 from dotenv import load_dotenv, find_dotenv
 import sys
 
@@ -110,7 +112,7 @@ def get_existing_images_from_s3(asin):
         print(f"   ❌ Error comprobando imágenes en S3: {e}")
         return []
 
-def download_and_upload_images(asin, imagenes, titulo_amazon):
+def download_and_upload_images(asin, imagenes):
     existing = get_existing_images_from_s3(asin)
     if existing:
         return existing
@@ -142,6 +144,130 @@ def download_and_upload_images(asin, imagenes, titulo_amazon):
             print(f"   ❌ Error subiendo imagen {img_url}: {e}")
 
     return urls_s3
+
+
+def extract_product_image_urls(product):
+    if not product:
+        return []
+
+    urls = []
+    image_keys = {
+        "additionalImages",
+        "altImages",
+        "colorImages",
+        "gallery",
+        "galleryImages",
+        "hiRes",
+        "highResolutionImages",
+        "image",
+        "imageLarge",
+        "imageUrl",
+        "imageUrls",
+        "images",
+        "landingImage",
+        "large",
+        "largeImage",
+        "mainImage",
+        "mainImageUrl",
+        "manufacturerProductImages",
+        "medium",
+        "primaryImage",
+        "thumb",
+        "thumbnail",
+        "variantImages",
+        "variants",
+        "zoom",
+    }
+
+    def add_url(value):
+        if isinstance(value, str):
+            value = value.strip()
+            if not value.startswith("http"):
+                return
+            lower = value.lower()
+            looks_like_image = any(
+                marker in lower
+                for marker in (
+                    ".jpg",
+                    ".jpeg",
+                    ".png",
+                    ".webp",
+                    ".gif",
+                    "images-na.ssl-images-amazon",
+                    "m.media-amazon.com",
+                    "ssl-images-amazon",
+                    "media-amazon",
+                )
+            )
+            if looks_like_image and value not in urls:
+                urls.append(value)
+
+    def add_many(value, depth=0, scan_branch=False):
+        if depth > 5:
+            return
+        if isinstance(value, str):
+            add_url(value)
+        elif isinstance(value, dict):
+            for key, nested in value.items():
+                key_text = str(key)
+                should_scan = scan_branch or key_text in image_keys or any(
+                    marker in key_text.lower()
+                    for marker in ("image", "img", "thumb", "large", "hires", "gallery", "variant")
+                )
+                if should_scan:
+                    add_many(nested, depth + 1, scan_branch=True)
+        elif isinstance(value, list):
+            for item in value:
+                add_many(item, depth + 1, scan_branch=scan_branch)
+
+    for key in (
+        "highResolutionImages",
+        "images",
+        "mainImage",
+        "image",
+        "imageUrl",
+        "mainImageUrl",
+        "largeImage",
+        "thumbnail",
+        "manufacturerProductImages",
+        "imageUrls",
+        "gallery",
+        "galleryImages",
+        "variantImages",
+        "colorImages",
+        "additionalImages",
+        "altImages",
+        "primaryImage",
+        "landingImage",
+    ):
+        add_many(product.get(key), scan_branch=True)
+
+    return urls
+
+
+def get_product_price(product):
+    if not product:
+        return None
+    candidates = [
+        product.get("rawPrice"),
+        product.get("price"),
+        product.get("originalPrice"),
+        (product.get("price") or {}).get("amount") if isinstance(product.get("price"), dict) else None,
+        (product.get("price") or {}).get("value") if isinstance(product.get("price"), dict) else None,
+    ]
+    for candidate in candidates:
+        price = normalize_decimal(candidate)
+        if price is not None:
+            return price
+    return None
+
+
+def product_has_needed_data(product, need_price=False, need_image=False):
+    if need_price and get_product_price(product) is None:
+        return False
+    if need_image and not extract_product_image_urls(product):
+        return False
+    return True
 
 
 def traducir_categoria(gl_key):
@@ -216,11 +342,80 @@ def normalize_for_mysql(value):
         return json.dumps(value, ensure_ascii=False)
     return value
 
+
+def normalize_decimal(value):
+    if value is None:
+        return None
+    if isinstance(value, Decimal):
+        return value
+    if isinstance(value, (int, float)):
+        return Decimal(str(value))
+
+    text = str(value).strip()
+    if not text or text.lower() in ("none", "nan", "null"):
+        return None
+
+    match = re.search(r"-?\d+(?:[.,]\d+)?", text)
+    if not match:
+        return None
+
+    try:
+        return Decimal(match.group(0).replace(",", "."))
+    except InvalidOperation:
+        return None
+
+
+def truncate_text(value, max_len):
+    if value is None:
+        return None
+    value = str(value).strip()
+    if len(value) <= max_len:
+        return value
+    return value[:max_len].rstrip()
+
+
+def truncate_handle(value, asin, max_len=150):
+    value = truncate_text(value, max_len)
+    if not value or not asin or value.endswith(asin):
+        return value
+
+    suffix = f"-{asin}"
+    if len(suffix) >= max_len:
+        return value[:max_len]
+    return f"{value[:max_len - len(suffix)].rstrip('-')}{suffix}"
+
+
+def prepare_scraped_data_for_mysql(data):
+    data = {k: normalize_for_mysql(v) for k, v in data.items()}
+
+    limits = {
+        "categoria": 100,
+        "scraping_domain": 20,
+        "marca": 100,
+        "dimensiones": 100,
+        "titulo_breve": 50,
+        "hashtags": 255,
+        "vendor": 100,
+        "seo_title": 100,
+        "seo_description": 200,
+    }
+    for key, limit in limits.items():
+        data[key] = truncate_text(data.get(key), limit)
+
+    data["handle"] = truncate_handle(data.get("handle"), data.get("asin"), 150)
+
+    for key in ("precio", "precio_coste", "precio_amazon", "rate", "peso", "peso_amazon"):
+        data[key] = normalize_decimal(data.get(key))
+
+    return data
+
 # ------------------------------
 # SCRAPING
 # ------------------------------
-def intentar_scraping(asin):
-    dominios = ["es", "de", "fr", "it", "com", "com.be", "co.uk", "ca", "nl", "pl", "se"]
+def intentar_scraping(asin, need_price=False, need_image=False, dominios=None):
+    dominios = dominios or ["es", "de", "fr", "it", "com", "com.be", "co.uk", "ca", "nl", "pl", "se"]
+    best_product = None
+    best_domain = None
 
     for dominio in dominios:
         try:
@@ -263,22 +458,28 @@ def intentar_scraping(asin):
             name = product.get("name")
 
             if isinstance(name, str) and name.strip():
-                return product, dominio
+                if best_product is None:
+                    best_product = product
+                    best_domain = dominio
+                if product_has_needed_data(product, need_price=need_price, need_image=need_image):
+                    return product, dominio
 
         except Exception as e:
             print(f"❌ Fallo scraping {asin} en dominio .{dominio}: {e}")
             continue
 
-    return None, None
+    return best_product, best_domain
 
 # ------------------------------
 # FUENTE DE DATOS (box_items + boxes + amazon_delivery)
 # ------------------------------
-def get_asins_para_procesar():
+def get_asins_para_procesar(limit=None):
+    conn = None
+    cursor = None
     try:
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
-        cursor.execute("""
+        query = """
             SELECT DISTINCT bi.asin, d.ItemDesc, d.UnitCost, d.UnitRecovery, d.RecoveryRate,
                             d.ItemPkgWeight, d.GLDesc
             FROM box_items bi
@@ -287,14 +488,19 @@ def get_asins_para_procesar():
             WHERE b.status IN ('Disponible','Reservado')
               AND bi.asin IS NOT NULL AND bi.asin <> ''
               AND NOT EXISTS (SELECT 1 FROM amazon_scraped_products asp WHERE asp.asin = bi.asin)
-        """)
+            ORDER BY bi.asin
+        """
+        if limit:
+            query += f"\nLIMIT {int(limit)}"
+        cursor.execute(query)
         return cursor.fetchall()
     except Exception as e:
         print(f"[ERROR] get_asins_para_procesar: {e}")
         return []
     finally:
-        if conn.is_connected():
+        if cursor:
             cursor.close()
+        if conn and conn.is_connected():
             conn.close()
 
 # ------------------------------
@@ -383,6 +589,22 @@ def insertar_scraped_data(data, cursor):
     cursor.execute(insert_query, data)
 
 
+def actualizar_imagenes_producto(asin, urls_s3, cursor):
+    if not urls_s3:
+        return
+    imagen_principal = urls_s3[0]
+    imagenes_adicionales = ", ".join(urls_s3[1:]) if len(urls_s3) > 1 else None
+    cursor.execute(
+        """
+        UPDATE amazon_scraped_products
+        SET imagen_principal = %s,
+            imagenes_adicionales = %s
+        WHERE asin = %s
+        """,
+        (imagen_principal, imagenes_adicionales, asin),
+    )
+
+
 def actualizar_pvp_ud_desde_fuentes(conn):
     """
     Rellena box_items.pvp_ud para pallets disponibles/reservados.
@@ -403,10 +625,10 @@ def actualizar_pvp_ud_desde_fuentes(conn):
             GROUP BY Asin
         ) ad ON ad.Asin = bi.asin
         SET bi.pvp_ud = CASE
-            WHEN asp.precio IS NOT NULL AND asp.precio <> '' AND asp.precio <> 'None'
-              THEN CAST(REPLACE(asp.precio, ',', '.') AS DECIMAL(10,2))
-            WHEN asp.precio_amazon IS NOT NULL AND asp.precio_amazon <> '' AND asp.precio_amazon <> 'None'
-              THEN CAST(REPLACE(asp.precio_amazon, ',', '.') AS DECIMAL(10,2))
+            WHEN TRIM(COALESCE(asp.precio, '')) REGEXP '^-?[0-9]+([,.][0-9]+)?$'
+              THEN CAST(REPLACE(TRIM(asp.precio), ',', '.') AS DECIMAL(10,2))
+            WHEN TRIM(COALESCE(asp.precio_amazon, '')) REGEXP '^-?[0-9]+([,.][0-9]+)?$'
+              THEN CAST(REPLACE(TRIM(asp.precio_amazon), ',', '.') AS DECIMAL(10,2))
             WHEN ad.UnitRecovery IS NOT NULL AND ad.UnitRecovery > 0
               THEN ad.UnitRecovery
             ELSE bi.pvp_ud
@@ -420,169 +642,117 @@ def actualizar_pvp_ud_desde_fuentes(conn):
     return n
 
 
-# ------------------------------
-# MAIN
-# ------------------------------
-if __name__ == "__main__":
+def build_scraped_data_from_product(asin, record, product, dominio):
+    scraping_domain = dominio or "es"
+
+    titulo_original = product.get("name", "").strip()
+    desc_raw = product.get("description", "") or ""
+    caracteristicas_raw = product.get("features", []) or []
+
+    contenido_ia = generar_contenido_ia(
+        titulo_original,
+        desc_raw,
+        caracteristicas_raw
+    )
+
+    titulo_amazon = contenido_ia.get("titulo_amazon", titulo_original)
+    titulo_breve = contenido_ia.get("titulo_breve", titulo_amazon)
+    descripcion = contenido_ia.get("descripcion", desc_raw)
+    caracteristicas = contenido_ia.get("caracteristicas", "")
+    hashtags = contenido_ia.get("hashtags", "")
+
+    raw_price = get_product_price(product)
+
+    gl_value = product.get("gl") or record.get("GLDesc")
+    categoria = traducir_categoria(gl_value)
+
+    return {
+        "asin": asin,
+        "scraping_domain": scraping_domain,
+        "categoria": categoria,
+        "titulo_amazon": titulo_amazon,
+        "marca": (product.get("brand") or "").strip(),
+        "precio": raw_price,
+        "precio_coste": record.get("UnitRecovery"),
+        "precio_amazon": record.get("UnitCost"),
+        "rate": record.get("RecoveryRate"),
+        "dimensiones": None,
+        "peso": None,
+        "peso_amazon": record.get("ItemPkgWeight"),
+        "imagen_principal": NO_IMAGE_URL,
+        "imagenes_adicionales": None,
+        "caracteristicas": caracteristicas,
+        "titulo_breve": titulo_breve,
+        "descripcion": descripcion,
+        "descripcion_tecnica": caracteristicas,
+        "hashtags": hashtags,
+        "handle": generate_shopify_handle(titulo_amazon, asin),
+        "vendor": "BestCash",
+        "seo_title": titulo_amazon,
+        "seo_description": descripcion,
+        "fecha_scraping": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+    }
+
+
+def build_scraped_data_from_delivery(asin, record):
+    item_desc = record.get("ItemDesc") or asin
+
+    contenido_ia = generar_contenido_ia(
+        item_desc,
+        item_desc,
+        []
+    )
+
+    titulo_amazon = contenido_ia.get("titulo_amazon", item_desc)
+    titulo_breve = contenido_ia.get("titulo_breve", titulo_amazon)
+    descripcion = contenido_ia.get("descripcion", item_desc)
+    hashtags = contenido_ia.get("hashtags", "")
+
+    return {
+        "asin": asin,
+        "scraping_domain": "es",
+        "categoria": traducir_categoria(record.get("GLDesc")),
+        "titulo_amazon": titulo_amazon,
+        "marca": None,
+        "precio": None,
+        "precio_coste": record.get("UnitRecovery"),
+        "precio_amazon": record.get("UnitCost"),
+        "rate": record.get("RecoveryRate"),
+        "dimensiones": None,
+        "peso": None,
+        "peso_amazon": record.get("ItemPkgWeight"),
+        "imagen_principal": NO_IMAGE_URL,
+        "imagenes_adicionales": None,
+        "caracteristicas": None,
+        "titulo_breve": titulo_breve,
+        "descripcion": descripcion,
+        "descripcion_tecnica": item_desc,
+        "hashtags": hashtags,
+        "handle": generate_shopify_handle(titulo_amazon, asin),
+        "vendor": "BestCash",
+        "seo_title": titulo_amazon,
+        "seo_description": descripcion,
+        "fecha_scraping": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+    }
+
+
+def run_enrich(
+    limit=None,
+    skip_images=False,
+    sleep_seconds=0.5,
+    only_pvp_update=False,
+    update_pvp=True,
+):
     try:
         sys.stdout.reconfigure(line_buffering=True)
     except Exception:
         pass
 
-    print(
-        "📡 Buscando ASIN de cajas Disponible/Reservado que aún no están en amazon_scraped_products...",
-        flush=True,
-    )
-    t_query = time.perf_counter()
-    registros = get_asins_para_procesar()
-    print(
-        f"🔍 ASINs a enriquecer (scraping/IA): {len(registros)} "
-        f"({time.perf_counter() - t_query:.1f}s)",
-        flush=True,
-    )
-    if not registros:
-        print(
-            "ℹ️  Nada que insertar en amazon_scraped_products: todos esos ASIN ya tienen ficha.",
-            flush=True,
-        )
-
     conn = get_connection()
-    cursor = conn.cursor()
-
-    try:
-        for i, record in enumerate(registros, start=1):
-            asin = record["asin"]
-            print(f"\n🔄 [{i}/{len(registros)}] Procesando {asin}", flush=True)
-
-            try:
-                product, dominio = intentar_scraping(asin)
-
-                # ======================================================
-                # CASO 1: SCRAPING DISPONIBLE
-                # ======================================================
-                if product:
-                    print(f"✅ Scraping encontrado en .{dominio}", flush=True)
-                    scraping_domain = dominio or "es"
-
-                    titulo_original = product.get("name", "").strip()
-                    desc_raw = product.get("description", "") or ""
-                    caracteristicas_raw = product.get("features", []) or []
-
-                    contenido_ia = generar_contenido_ia(
-                        titulo_original,
-                        desc_raw,
-                        caracteristicas_raw
-                    )
-
-                    titulo_amazon = contenido_ia.get("titulo_amazon", titulo_original)
-                    titulo_breve = contenido_ia.get("titulo_breve", titulo_amazon)
-                    descripcion = contenido_ia.get("descripcion", desc_raw)
-                    caracteristicas = contenido_ia.get("caracteristicas", "")
-                    hashtags = contenido_ia.get("hashtags", "")
-
-                    imagenes = product.get("highResolutionImages") or product.get("images") or []
-                    urls_s3 = download_and_upload_images(asin, imagenes, titulo_amazon)
-
-                    raw_price = product.get("rawPrice")
-
-                    gl_value = product.get("gl") or record.get("GLDesc")
-                    categoria = traducir_categoria(gl_value)
-
-                    data = {
-                        "asin": asin,
-                        "scraping_domain": scraping_domain,
-                        "categoria": categoria,
-                        "titulo_amazon": titulo_amazon,
-                        "marca": (product.get("brand") or "").strip(),
-                        "precio": raw_price,
-                        "precio_coste": record.get("UnitRecovery"),
-                        "precio_amazon": record.get("UnitCost"),
-                        "rate": record.get("RecoveryRate"),
-                        "dimensiones": None,
-                        "peso": None,
-                        "peso_amazon": record.get("ItemPkgWeight"),
-                        "imagen_principal": urls_s3[0] if urls_s3 else NO_IMAGE_URL,
-                        "imagenes_adicionales": ", ".join(urls_s3[1:]) if len(urls_s3) > 1 else None,
-                        "caracteristicas": caracteristicas,
-                        "titulo_breve": titulo_breve,
-                        "descripcion": descripcion,
-                        "descripcion_tecnica": caracteristicas,
-                        "hashtags": hashtags,
-                        "handle": generate_shopify_handle(titulo_amazon, asin),
-                        "vendor": "BestCash",
-                        "seo_title": titulo_amazon,
-                        "seo_description": descripcion,
-                        "fecha_scraping": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                    }
-
-                    print("➡️ Datos obtenidos por SCRAPING", flush=True)
-
-                # ======================================================
-                # CASO 2: FALLBACK AMAZON_DELIVERY
-                # ======================================================
-                else:
-                    print("⚠️ Scraping no disponible, usando fallback amazon_delivery", flush=True)
-
-                    item_desc = record.get("ItemDesc") or asin
-
-                    contenido_ia = generar_contenido_ia(
-                        item_desc,
-                        item_desc,
-                        []
-                    )
-
-                    titulo_amazon = contenido_ia.get("titulo_amazon", item_desc)
-                    titulo_breve = contenido_ia.get("titulo_breve", titulo_amazon)
-                    descripcion = contenido_ia.get("descripcion", item_desc)
-                    hashtags = contenido_ia.get("hashtags", "")
-
-                    data = {
-                        "asin": asin,
-                        "scraping_domain": "es",
-                        "categoria": traducir_categoria(record.get("GLDesc")),
-                        "titulo_amazon": titulo_amazon,
-                        "marca": None,
-                        "precio": None,
-                        "precio_coste": record.get("UnitRecovery"),
-                        "precio_amazon": record.get("UnitCost"),
-                        "rate": record.get("RecoveryRate"),
-                        "dimensiones": None,
-                        "peso": None,
-                        "peso_amazon": record.get("ItemPkgWeight"),
-                        "imagen_principal": NO_IMAGE_URL,
-                        "imagenes_adicionales": None,
-                        "caracteristicas": None,
-                        "titulo_breve": titulo_breve,
-                        "descripcion": descripcion,
-                        "descripcion_tecnica": item_desc,
-                        "hashtags": hashtags,
-                        "handle": generate_shopify_handle(titulo_amazon, asin),
-                        "vendor": "BestCash",
-                        "seo_title": titulo_amazon,
-                        "seo_description": descripcion,
-                        "fecha_scraping": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                    }
-
-                    print("➡️ Datos obtenidos por DELIVERY", flush=True)
-
-                # 🔹 Normalización robusta antes de insertar
-                data = {k: normalize_for_mysql(v) for k, v in data.items()}
-
-                print(f"   💾 Insertando en amazon_scraped_products…", flush=True)
-                insertar_scraped_data(data, cursor)
-                conn.commit()
-                print(f"   ✅ Guardado {asin}", flush=True)
-
-                time.sleep(0.5)
-
-            except Exception as e:
-                conn.rollback()
-                print(f"❌ Error procesando {asin}: {e}", flush=True)
-
-        # Rellenar pvp_ud usando scraping y/o UnitRecovery como fallback
+    if only_pvp_update:
         try:
             print(
-                "\n📊 Actualizando box_items.pvp_ud (UPDATE masivo con JOINs; puede tardar varios minutos)…",
+                "\n📊 Actualizando box_items.pvp_ud (sin scraping/IA)…",
                 flush=True,
             )
             t_pvp = time.perf_counter()
@@ -596,7 +766,156 @@ if __name__ == "__main__":
         except Exception as e:
             conn.rollback()
             print(f"❌ Error actualizando pvp_ud: {e}", flush=True)
+            raise
+        finally:
+            conn.close()
+        return
+
+    print(
+        "📡 Buscando ASIN de cajas Disponible/Reservado que aún no están en amazon_scraped_products...",
+        flush=True,
+    )
+    t_query = time.perf_counter()
+    registros = get_asins_para_procesar(limit=limit)
+    print(
+        f"🔍 ASINs a enriquecer (scraping/IA): {len(registros)} "
+        f"({time.perf_counter() - t_query:.1f}s)",
+        flush=True,
+    )
+    if not registros:
+        print(
+            "ℹ️  Nada que insertar en amazon_scraped_products: todos esos ASIN ya tienen ficha.",
+            flush=True,
+        )
+
+    cursor = conn.cursor()
+    ok = 0
+    errors = 0
+
+    try:
+        for i, record in enumerate(registros, start=1):
+            asin = record["asin"]
+            print(f"\n🔄 [{i}/{len(registros)}] Procesando {asin}", flush=True)
+
+            try:
+                product, dominio = intentar_scraping(
+                    asin,
+                    need_price=True,
+                    need_image=not skip_images,
+                )
+
+                # ======================================================
+                # CASO 1: SCRAPING DISPONIBLE
+                # ======================================================
+                if product:
+                    print(f"✅ Scraping encontrado en .{dominio}", flush=True)
+                    data = build_scraped_data_from_product(asin, record, product, dominio)
+
+                    print("➡️ Datos obtenidos por SCRAPING", flush=True)
+
+                # ======================================================
+                # CASO 2: FALLBACK AMAZON_DELIVERY
+                # ======================================================
+                else:
+                    print("⚠️ Scraping no disponible, usando fallback amazon_delivery", flush=True)
+                    data = build_scraped_data_from_delivery(asin, record)
+
+                    print("➡️ Datos obtenidos por DELIVERY", flush=True)
+
+                # 🔹 Normalización robusta antes de insertar
+                data = prepare_scraped_data_for_mysql(data)
+
+                print(f"   💾 Insertando en amazon_scraped_products…", flush=True)
+                insertar_scraped_data(data, cursor)
+                conn.commit()
+                print(f"   ✅ Guardado {asin}", flush=True)
+
+                if product and not skip_images:
+                    imagenes = extract_product_image_urls(product)
+                    urls_s3 = download_and_upload_images(asin, imagenes)
+                    if urls_s3:
+                        actualizar_imagenes_producto(asin, urls_s3, cursor)
+                        conn.commit()
+                        print(f"   ✅ Imágenes enlazadas en BD para {asin}: {len(urls_s3)}", flush=True)
+
+                ok += 1
+                time.sleep(sleep_seconds)
+
+            except Exception as e:
+                conn.rollback()
+                errors += 1
+                print(f"❌ Error procesando {asin}: {e}", flush=True)
+
+        if update_pvp:
+            # Rellenar pvp_ud usando scraping y/o UnitRecovery como fallback
+            try:
+                print(
+                    "\n📊 Actualizando box_items.pvp_ud (UPDATE masivo con JOINs; puede tardar varios minutos)…",
+                    flush=True,
+                )
+                t_pvp = time.perf_counter()
+                nrows = actualizar_pvp_ud_desde_fuentes(conn)
+                conn.commit()
+                print(
+                    f"✅ pvp_ud aplicado en box_items | filas afectadas (rowcount MySQL): {nrows} "
+                    f"| {time.perf_counter() - t_pvp:.1f}s",
+                    flush=True,
+                )
+            except Exception as e:
+                conn.rollback()
+                print(f"❌ Error actualizando pvp_ud: {e}", flush=True)
+        else:
+            print("\nℹ️  Saltando actualización masiva de pvp_ud (--skip-pvp-update).", flush=True)
 
     finally:
         cursor.close()
         conn.close()
+
+    print(
+        f"\n📌 Resumen enrich: guardados={ok}, errores={errors}, solicitados={len(registros)}",
+        flush=True,
+    )
+
+
+# ------------------------------
+# MAIN
+# ------------------------------
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Enriquece ASIN pendientes y actualiza pvp_ud para lotes mayoristas."
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Procesa como máximo N ASIN pendientes en esta ejecución.",
+    )
+    parser.add_argument(
+        "--skip-images",
+        action="store_true",
+        help="Guarda fichas sin descargar/subir imágenes a S3.",
+    )
+    parser.add_argument(
+        "--sleep",
+        type=float,
+        default=0.5,
+        help="Segundos de pausa entre ASIN procesados.",
+    )
+    parser.add_argument(
+        "--only-pvp-update",
+        action="store_true",
+        help="No scrapea; solo rellena box_items.pvp_ud desde fuentes disponibles.",
+    )
+    parser.add_argument(
+        "--skip-pvp-update",
+        action="store_true",
+        help="No ejecuta el UPDATE masivo de box_items.pvp_ud al final.",
+    )
+    args = parser.parse_args()
+    run_enrich(
+        limit=args.limit,
+        skip_images=args.skip_images,
+        sleep_seconds=args.sleep,
+        only_pvp_update=args.only_pvp_update,
+        update_pvp=not args.skip_pvp_update,
+    )

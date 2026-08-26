@@ -10,6 +10,7 @@
   <th class="sortable col-weight" data-type="number" scope="col">Peso</th>
 	<th class="col-do num" scope="col">Dev/Over</th>
   <th class="sortable col-status" data-type="status" scope="col">Estado</th>
+  <th class="management-col" scope="col">Gestion</th>
 </tr>
 </thead>
 
@@ -59,6 +60,13 @@
         </span>
       </a>
     {% endif %}
+  </td>
+  <td class="management-col">
+    <a
+      class="management-link"
+      href="../lotes/{{ pallet.code }}.html?admin=1"
+      title="Renombrar pallet {{ pallet.code }}"
+    >Renombrar</a>
   </td>
 </tr>
 {% endfor %}

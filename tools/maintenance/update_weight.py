@@ -17,7 +17,7 @@ DB_CONFIG = {
     'user': os.getenv('DB_USER', 'bestcash_app'),
     'password': os.getenv('DB_PASSWORD', 'Bc_TPV_2026!kjDERZtm#82'),
     'host': os.getenv('DB_HOST', '82.223.203.117'),
-    'database': os.getenv('DB_NAME', 'bestcash_rds')
+    'database': os.getenv('DB_NAME', 'bestcash')
 }
 
 CRAWLBASE_TOKEN = os.getenv("CRAWLBASE_TOKEN", "9a_E5QjtbAz2sAbVt2U3vQ")
@@ -219,7 +219,7 @@ if __name__ == "__main__":
                 'user': os.getenv('DB_USER', 'bestcash_app'),
                 'password': os.getenv('DB_PASSWORD', 'Bc_TPV_2026!kjDERZtm#82'),
                 'host': os.getenv('DB_HOST', '82.223.203.117'),
-                'database': os.getenv('DB_NAME', 'bestcash_rds')
+                'database': os.getenv('DB_NAME', 'bestcash')
             }
 
             peso = scrapear_peso_por_asin(asin)

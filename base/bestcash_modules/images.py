@@ -45,10 +45,11 @@ def get_existing_images_from_s3(asin):
     try:
         resp = _get_s3_client().list_objects_v2(Bucket=IMAGE_BUCKET, Prefix=f"{asin}/")
         if "Contents" in resp:
-            return [
+            return sorted(
                 f"https://{IMAGE_BUCKET}.s3.amazonaws.com/{obj['Key']}"
                 for obj in resp["Contents"]
-            ]
+                if not obj["Key"].endswith("/")
+            )
         return []
     except Exception as exc:
         logging.warning("Error listando imagenes en S3 para %s: %s", asin, exc)
@@ -57,16 +58,20 @@ def get_existing_images_from_s3(asin):
 
 def download_and_upload_images(asin, imagenes):
     existentes = get_existing_images_from_s3(asin)
-    if existentes:
+    imagenes_unicas = list(dict.fromkeys(imagenes or []))[:5]
+    if existentes and len(existentes) >= len(imagenes_unicas):
         return existentes
 
-    urls = []
-    for idx, url in enumerate(list(dict.fromkeys(imagenes))[:5]):
+    urls = list(existentes)
+    existing_filenames = {os.path.basename(url) for url in existentes}
+    for idx, url in enumerate(imagenes_unicas):
+        filename = f"{asin}_{idx + 1}.jpg"
+        if filename in existing_filenames:
+            continue
         try:
             response = requests.get(url, timeout=10)
             response.raise_for_status()
 
-            filename = f"{asin}_{idx + 1}.jpg"
             s3_key = f"{asin}/{filename}"
             _get_s3_client().upload_fileobj(
                 BytesIO(response.content),
@@ -75,9 +80,10 @@ def download_and_upload_images(asin, imagenes):
                 ExtraArgs={"ContentType": "image/jpeg"},
             )
             urls.append(f"https://{IMAGE_BUCKET}.s3.amazonaws.com/{s3_key}")
+            existing_filenames.add(filename)
         except Exception as exc:
             logging.warning(
                 "No se pudo descargar/subir imagen para %s (%s): %s", asin, url, exc
             )
 
-    return urls
+    return sorted(urls)

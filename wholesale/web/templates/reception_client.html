@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Recepcion {{ client.name }}</title>
+  <link rel="stylesheet" href="/assets/reception.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="heading">
+        <div>
+          <h1>{{ client.name }}</h1>
+          <div class="meta">{{ pallets|length }} pallets asignados</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="pallet-list">
+      {% for pallet in pallets %}
+        <a class="pallet-row" href="/recepcion/{{ client.token }}/pallet/{{ pallet.box_code }}">
+          <div class="pallet-code">{{ pallet.box_code }}</div>
+          <div>
+            <div class="pallet-name">{{ pallet.name or "Pallet" }}</div>
+            <div class="pallet-detail">
+              {{ pallet.done_units }} de {{ pallet.total_units }} unidades ·
+              {% if pallet.missing_units or pallet.damaged_units %}
+                {{ pallet.missing_units + pallet.damaged_units }} incidencias
+              {% else %}
+                sin incidencias
+              {% endif %}
+            </div>
+            <div class="progress" aria-hidden="true">
+              <div class="progress-fill" style="--progress: {{ pallet.progress_percent }}%"></div>
+            </div>
+          </div>
+          <span class="status-badge status-{{ pallet.reception_status|lower|replace(' ', '-') }}">
+            {{ pallet.reception_status }}
+          </span>
+        </a>
+      {% else %}
+        <div class="empty" style="display:block">No hay pallets asignados.</div>
+      {% endfor %}
+    </section>
+  </main>
+</body>
+</html>

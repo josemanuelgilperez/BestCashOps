@@ -193,7 +193,7 @@ python3 /root/BestCashOps/tpv/insert_new_items_shops.py /root/BestCashOps/tpv/nu
 
 ```sql
 SELECT asin,titulo_amazon,caracteristicas,descripcion_tecnica,peso,peso_amazon,dimensiones,marca
-FROM bestcash_rds.amazon_scraped_products
+FROM bestcash.amazon_scraped_products
 WHERE asin IN (...)
 ```
 
@@ -214,12 +214,14 @@ WHERE asin IN (...)
 ```sql
 SELECT
     pi.asin,
-    ii.bestcash_price,
+    ROUND(MAX(ii.bestcash_price), 2) AS bestcash_price,
+    ROUND(MIN(ii.bestcash_price), 2) AS bestcash_price_min,
+    ROUND(MAX(ii.bestcash_price), 2) AS bestcash_price_max,
     COUNT(DISTINCT ii.code) AS num_codes_distintos,
     GROUP_CONCAT(DISTINCT ii.code ORDER BY ii.code SEPARATOR ',') AS codes
-FROM bestcash_rds.products_info  AS pi
-JOIN bestcash_rds.references_info AS ri ON ri.product_id  = pi.id
-JOIN bestcash_rds.items_info      AS ii ON ii.reference_id = ri.id
+FROM bestcash.products_info  AS pi
+JOIN bestcash.references_info AS ri ON ri.product_id  = pi.id
+JOIN bestcash.items_info      AS ii ON ii.reference_id = ri.id
 WHERE pi.asin IN (...)
 AND ii.shop_id = 5
 GROUP BY pi.asin
@@ -244,10 +246,10 @@ ORDER BY pi.asin;
 
 - Nodo: `Code in JavaScript2`
 - Genera por cada ASIN:
-  - `titulo_breve`: primeros 60 caracteres de `titulo_amazon`
-  - `descripcion`: `descripcion_tecnica`
+  - `titulo_breve`: maximo 50 caracteres, cortando por palabra completa cuando sea posible
+  - `descripcion`: maximo 640 caracteres, con contenido comercial breve y linea final `REF. BESTCASH <ASIN>`
   - `UD.`: numero de codigos distintos
-  - `PVP (60%)`: `bestcash_price * 0.6`
+  - `PVP (60%)`: 60% del precio de origen si existe (`precio`), con fallback a `bestcash_price`
   - `peso`
   - `peso_amazon`
   - `dimensiones`
@@ -257,6 +259,8 @@ ORDER BY pi.asin;
   - `caracteristicas`
   - `descripcion_tecnica`
   - `estado = NUEVO`
+- Codigo fuente de referencia para este nodo:
+  - `tools/maintenance/wallapop_publish_payload.js`
 
 #### 8D. Loteado
 
