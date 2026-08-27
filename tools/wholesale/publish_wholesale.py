@@ -52,10 +52,14 @@ def write_new_codes_file(args):
         from_asins=args.from_asins,
         new_pallets=args.new_pallets,
     )
-    if not codes:
-        return
     path = Path(REPO_ROOT) / "wholesale" / "data" / "new_published_pallets.txt"
     path.parent.mkdir(parents=True, exist_ok=True)
+    if not codes:
+        path.write_text("", encoding="utf-8")
+        raise SystemExit(
+            "No se resolvieron codigos para la tanda de nuevos; "
+            f"se ha vaciado {path.relative_to(REPO_ROOT)} para no reutilizar una tanda anterior."
+        )
     path.write_text("\n".join(codes) + "\n", encoding="utf-8")
     print(f"\n▶ nuevos publicados: {len(codes)} codigos en {path.relative_to(REPO_ROOT)}", flush=True)
 

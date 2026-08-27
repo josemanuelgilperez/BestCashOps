@@ -200,6 +200,7 @@ quality_report pre
 finance.py --new-pallets
 build_html.py
 categories.py
+escribe wholesale/data/new_published_pallets.txt con la tanda actual
 quality_report post
 upload_ftp.py
 ```
@@ -208,6 +209,8 @@ Notas:
 
 - `finance.py --new-pallets` toma los codigos desde
   `wholesale/data/processed/*.xlsx`.
+- `wholesale/data/new_published_pallets.txt` es operativo/generado y esta
+  ignorado por Git; no debe conservar una tanda anterior versionada.
 - `build_html.py` solo lista pallets con `show_pallet = 1` y estado
   `Disponible` o `Reservado`.
 - `upload_ftp.py` sube `wholesale/web/output` y omite fichas de pallets con
