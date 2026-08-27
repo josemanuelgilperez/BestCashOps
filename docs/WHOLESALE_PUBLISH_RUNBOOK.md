@@ -370,6 +370,10 @@ definido.
 El script actualiza `boxes.status`, `boxes.reservado_para`,
 `boxes.reservado_por`, `boxes.fecha_reserva` y `boxes.fecha_venta`; regenera
 fichas/listados/categorias afectadas y sube por FTP solo esos archivos.
+Antes de subir, reaplica `tools/wholesale/mark_new_lots.py` sobre
+`wholesale/web/output`, valida que los listados tengan el filtro `Nuevos` y
+añade a la subida `lotes/index.html`, los assets `new-lots.*` y todas las
+categorias para que no queden paginas regeneradas sin marcado de nuevos.
 
 ## Renombrar pallets desde la ficha
 

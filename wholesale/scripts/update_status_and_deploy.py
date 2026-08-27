@@ -16,6 +16,8 @@ import os
 import sys
 import csv
 import json
+import re
+import subprocess
 from datetime import date, datetime
 from pathlib import Path
 
@@ -36,6 +38,9 @@ from scripts.upload_ftp import subir_archivos_especificos, FTP_HOST
 
 DATA_DIR = BASE_DIR / "data"
 CSV_PATH = DATA_DIR / "update_status.csv"
+WEB_OUTPUT_DIR = BASE_DIR / "web" / "output"
+NEW_CODES_FILE = DATA_DIR / "new_published_pallets.txt"
+MARK_NEW_LOTS_SCRIPT = REPO_ROOT / "tools" / "wholesale" / "mark_new_lots.py"
 DATE_DEFAULT_YEAR = int(os.getenv("BESTCASH_STATUS_DATE_YEAR", str(date.today().year)))
 
 
@@ -377,12 +382,83 @@ def build_incremental(affected_codes: set):
     return list(dict.fromkeys(archivos_subir))  # sin duplicados, orden preservado
 
 
+def apply_new_lot_filters(archivos_subir):
+    """
+    Reaplica el filtro Nuevos tras regenerar listados.
+
+    Las plantillas base no incluyen data-new-filter/data-new-lot; si se suben
+    paginas incrementales sin este paso, produccion queda mezclada.
+    """
+    if not MARK_NEW_LOTS_SCRIPT.exists():
+        raise RuntimeError(f"No existe {MARK_NEW_LOTS_SCRIPT}")
+
+    subprocess.run(
+        [
+            sys.executable,
+            str(MARK_NEW_LOTS_SCRIPT),
+            "--site",
+            str(WEB_OUTPUT_DIR),
+            "--new-codes-file",
+            str(NEW_CODES_FILE),
+        ],
+        cwd=REPO_ROOT,
+        check=True,
+    )
+
+    common = [
+        "index.html",
+        "assets/new-lots.css",
+        "assets/new-lots.js",
+        "lotes/index.html",
+    ]
+    category_files = sorted(
+        str(path.relative_to(WEB_OUTPUT_DIR)).replace(os.sep, "/")
+        for path in (WEB_OUTPUT_DIR / "categorias").glob("*.html")
+    )
+    return list(dict.fromkeys([*archivos_subir, *common, *category_files]))
+
+
+def validate_new_lot_list_pages(archivos_subir):
+    list_pages = [
+        rel
+        for rel in archivos_subir
+        if rel == "lotes/index.html"
+        or rel.startswith("categorias/")
+        and rel.endswith(".html")
+    ]
+    errors = []
+
+    for rel in list_pages:
+        path = WEB_OUTPUT_DIR / rel
+        if not path.exists():
+            errors.append(f"{rel}: no existe")
+            continue
+        html = path.read_text(encoding="utf-8", errors="ignore")
+        linked_codes = set(re.findall(r"(?:^|/)([A-Z]{2}\d{4})\.html", html))
+        issues = []
+        if 'data-new-filter="new"' not in html:
+            issues.append("falta data-new-filter")
+        if "new-lots.css" not in html:
+            issues.append("falta new-lots.css")
+        if "new-lots.js" not in html:
+            issues.append("falta new-lots.js")
+        if linked_codes and "data-pallet-code=" not in html:
+            issues.append("faltan data-pallet-code")
+        if issues:
+            errors.append(f"{rel}: {', '.join(issues)}")
+
+    if errors:
+        raise RuntimeError("Paginas de listado sin filtro Nuevos:\n" + "\n".join(errors))
+
+
 def main():
     affected = actualizar_estados_desde_csv()
     if not affected:
         return
 
     archivos = build_incremental(affected)
+    archivos = apply_new_lot_filters(archivos)
+    validate_new_lot_list_pages(archivos)
 
     ftp_user = os.getenv("FTP_USER")
     ftp_pass = os.getenv("FTP_PASS")

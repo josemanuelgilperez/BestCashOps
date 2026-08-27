@@ -7,6 +7,9 @@
 # CSV operativo mayorista (ruta real: wholesale/data/)
 wholesale/data/update_status.csv
 
+# CSV operativo generado por n8n para alta TPV; versionar solo el .example.
+tpv/nuevos_productos.csv
+
 # ======================================
 # LOGS
 # ======================================

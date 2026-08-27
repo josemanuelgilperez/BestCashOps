@@ -650,7 +650,9 @@ El CSV debe copiarse al Servidor B en:
 
 Nombre sugerido:
 
-- `/root/BestCashOps/tpv/nuevos_productos.csv`
+  - `/root/BestCashOps/tpv/nuevos_productos.csv`
+  - archivo operativo ignorado por Git; el formato versionado esta en
+    `tpv/nuevos_productos.csv.example`
 
 ### Ejecucion remota
 
